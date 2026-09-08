@@ -18,10 +18,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       config={{
         appearance: {
           walletChainType: "ethereum-only",
+          landingHeader: "Create an account",
+          loginMessage: "Create an account to claim your gift.",
         },
         defaultChain: sepolia,
         supportedChains: [mainnet, sepolia],
-        // Create embedded wallets for users who don't have a wallet
         embeddedWallets: {
           ethereum: {
             createOnLogin: "users-without-wallets",
