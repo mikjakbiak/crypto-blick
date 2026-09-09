@@ -1,70 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import {
-  createPublicClient,
-  formatEther,
-  http,
-  type Address,
-  type Chain,
-} from "viem";
-import { mainnet, sepolia } from "viem/chains";
-
-const CHAINS = [mainnet, sepolia] as const;
-
-function chainFromCaip(chainId: string): Chain {
-  const numericId = Number(chainId.split(":")[1]);
-  return CHAINS.find((chain) => chain.id === numericId) ?? sepolia;
-}
-
-function formatEthBalance(wei: bigint) {
-  const eth = Number(formatEther(wei));
-  return eth.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 4,
-  });
-}
+import { useRouter } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
+import { formatTokenAmount } from "@/lib/tokens";
 
 type AccountMenuProps = {
   name: string;
+  ethBalance: number;
 };
 
-export default function AccountMenu({ name }: AccountMenuProps) {
+export default function AccountMenu({ name, ethBalance }: AccountMenuProps) {
+  const router = useRouter();
   const { logout } = usePrivy();
-  const { wallets, ready: walletsReady } = useWallets();
-  const wallet = wallets[0];
-
-  const [balance, setBalance] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!wallet) {
-      setBalance(null);
-      return;
-    }
-
-    let cancelled = false;
-    const chain = chainFromCaip(wallet.chainId);
-    const client = createPublicClient({
-      chain,
-      transport: http(),
-    });
-
-    client
-      .getBalance({ address: wallet.address as Address })
-      .then((wei) => {
-        if (!cancelled) setBalance(formatEthBalance(wei));
-      })
-      .catch(() => {
-        if (!cancelled) setBalance(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [wallet?.address, wallet?.chainId]);
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -88,6 +38,7 @@ export default function AccountMenu({ name }: AccountMenuProps) {
   async function handleLogout() {
     setOpen(false);
     await logout();
+    router.replace("/");
   }
 
   return (
@@ -104,7 +55,7 @@ export default function AccountMenu({ name }: AccountMenuProps) {
         </span>
         <span className="shrink-0 text-zinc-400">·</span>
         <span className="shrink-0 font-mono text-zinc-600 dark:text-zinc-400">
-          {!walletsReady || balance === null ? "…" : `${balance} ETH`}
+          {formatTokenAmount(ethBalance, 4)} ETH
         </span>
       </button>
 

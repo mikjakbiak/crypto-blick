@@ -41,10 +41,7 @@ export default function AuthButton() {
   const activeChain = wallet ? chainFromCaip(wallet.chainId) : null;
 
   useEffect(() => {
-    if (!wallet) {
-      setBalance(null);
-      return;
-    }
+    if (!wallet) return;
 
     let cancelled = false;
     const chain = chainFromCaip(wallet.chainId);
@@ -65,7 +62,7 @@ export default function AuthButton() {
     return () => {
       cancelled = true;
     };
-  }, [wallet?.address, wallet?.chainId]);
+  }, [wallet]);
 
   async function switchToChain(chainId: number) {
     if (!wallet || switching || activeChain?.id === chainId) return;

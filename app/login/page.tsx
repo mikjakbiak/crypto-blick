@@ -1,6 +1,20 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import LoginPrompt from "@/components/login-prompt";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { ready, authenticated } = usePrivy();
+
+  useEffect(() => {
+    if (ready && authenticated) {
+      router.replace("/dashboard");
+    }
+  }, [ready, authenticated, router]);
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
       <main className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
@@ -8,7 +22,11 @@ export default function LoginPage() {
           Sign in with Privy
         </h1>
         <div className="mt-5">
-          <LoginPrompt title="Create an embedded wallet to continue." />
+          {ready && authenticated ? (
+            <p className="text-sm text-zinc-500">Redirecting to dashboard…</p>
+          ) : (
+            <LoginPrompt title="Create an embedded wallet to continue." />
+          )}
         </div>
       </main>
     </div>

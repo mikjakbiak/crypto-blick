@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import AccountMenu from "@/components/account-menu";
 import GiftCard from "@/components/gift-card";
 import {
   claimGiftOnChain,
@@ -16,63 +16,68 @@ type HomeClientProps = {
 };
 
 export default function HomeClient({ initialCode }: HomeClientProps) {
+  const router = useRouter();
   const { ready, authenticated } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
-  const wallet = wallets[0];
-  const [claimedEns, setClaimedEns] = useState<string | null>(null);
+  const wallet =
+    wallets.find(
+      (candidate) =>
+        candidate.walletClientType === "privy" ||
+        candidate.walletClientType === "privy-v2",
+    ) ?? wallets[0];
+  const walletAddress = wallet?.address;
+  const [claimSettled, setClaimSettled] = useState(false);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !authenticated) return;
+    if (!walletsReady || !walletAddress) return;
 
-    if (!authenticated) {
-      setClaimedEns(null);
-      return;
-    }
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
 
-    if (!walletsReady || !wallet?.address) return;
-
-    const pending = getPendingClaim();
-    if (pending) {
-      try {
-        const existing = getEnsByAddress(wallet.address);
-        if (existing) {
+      const pending = getPendingClaim();
+      if (pending) {
+        try {
+          const existing = getEnsByAddress(walletAddress);
+          if (!existing) {
+            claimGiftOnChain(pending.code, pending.label, walletAddress);
+          }
+        } catch {
+          // The claim can be retried from the claim form.
+        } finally {
           clearPendingClaim();
-          setClaimedEns(existing);
-          return;
         }
-
-        const claim = claimGiftOnChain(
-          pending.code,
-          pending.label,
-          wallet.address,
-        );
-        clearPendingClaim();
-        setClaimedEns(claim.ens);
-      } catch {
-        clearPendingClaim();
-        setClaimedEns(getEnsByAddress(wallet.address));
       }
-      return;
-    }
 
-    setClaimedEns(getEnsByAddress(wallet.address));
-  }, [ready, authenticated, walletsReady, wallet?.address]);
+      if (!cancelled) setClaimSettled(true);
+    });
 
-  const showAccount = Boolean(ready && authenticated && claimedEns);
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, authenticated, walletsReady, walletAddress]);
+
+  useEffect(() => {
+    if (!ready || !authenticated || !claimSettled) return;
+    router.replace("/dashboard");
+  }, [ready, authenticated, claimSettled, router]);
 
   return (
     <div className="relative flex flex-1 flex-col">
-      {showAccount ? (
-        <div className="absolute top-4 right-4 z-10 sm:top-6 sm:right-6">
-          <AccountMenu name={claimedEns!} />
-        </div>
-      ) : null}
-
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
-        <GiftCard
-          initialCode={initialCode}
-          onClaimed={setClaimedEns}
-        />
+        {!ready || (authenticated && !claimSettled) ? (
+          <p className="text-sm text-zinc-500">Loading…</p>
+        ) : authenticated && claimSettled ? (
+          <p className="text-sm text-zinc-500">Taking you to your dashboard…</p>
+        ) : (
+          <GiftCard
+            initialCode={initialCode}
+            onClaimed={() => {
+              setClaimSettled(true);
+            }}
+          />
+        )}
       </div>
     </div>
   );

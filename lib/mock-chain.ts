@@ -2,6 +2,7 @@ import { keccak256, parseEther, stringToBytes, type Hex } from "viem";
 
 const GIFTS_KEY = "crypto-blick:mock-gifts";
 const ENS_BY_ADDRESS_KEY = "crypto-blick:mock-ens-by-address";
+const BALANCES_BY_ADDRESS_KEY = "crypto-blick:mock-balances-by-address";
 const PENDING_CLAIM_KEY = "crypto-blick:pending-claim";
 
 export const ENS_SUFFIX = ".gift.eth";
@@ -17,6 +18,18 @@ export type MockGift = {
 export type PendingClaim = {
   code: string;
   label: string;
+};
+
+export type MockTokenBalances = {
+  ETH: string;
+  USDC: string;
+  USDT: string;
+};
+
+const EMPTY_BALANCES: MockTokenBalances = {
+  ETH: "0",
+  USDC: "0",
+  USDT: "0",
 };
 
 function canUseStorage() {
@@ -41,6 +54,36 @@ function writeJson(key: string, value: unknown) {
 
 function normalizeAddress(address: string) {
   return address.toLowerCase();
+}
+
+function getBalancesByAddressMap() {
+  return readJson<Record<string, MockTokenBalances>>(
+    BALANCES_BY_ADDRESS_KEY,
+    {},
+  );
+}
+
+export function getBalancesByAddress(address: string): MockTokenBalances {
+  const balances = getBalancesByAddressMap()[normalizeAddress(address)];
+  return {
+    ...EMPTY_BALANCES,
+    ...balances,
+  };
+}
+
+function creditGiftToAddress(address: string, gift: MockGift) {
+  const normalized = normalizeAddress(address);
+  const map = getBalancesByAddressMap();
+  const balances = {
+    ...EMPTY_BALANCES,
+    ...map[normalized],
+  };
+
+  map[normalized] = {
+    ...balances,
+    ETH: (BigInt(balances.ETH) + BigInt(gift.amountWei)).toString(),
+  };
+  writeJson(BALANCES_BY_ADDRESS_KEY, map);
 }
 
 function getHardcodedTestGift(): MockGift {
@@ -169,6 +212,7 @@ export function claimGiftOnChain(
     isClaimed: true,
   };
   writeJson(GIFTS_KEY, gifts);
+  creditGiftToAddress(normalized, gift);
 
   return { ens, codeHash: gift.codeHash };
 }
