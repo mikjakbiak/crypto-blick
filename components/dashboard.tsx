@@ -7,11 +7,11 @@ import {
   useSyncExternalStore,
   type FormEvent,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAddFunds, usePrivy, useWallets } from "@privy-io/react-auth";
 import { formatUnits, isAddress } from "viem";
 import AccountMenu from "@/components/account-menu";
-import SendGiftForm from "@/components/send-gift-form";
+import SendGiftForm, { type SendMode } from "@/components/send-gift-form";
 import {
   addContact,
   getContacts,
@@ -25,7 +25,7 @@ import { DASHBOARD_TOKENS, formatTokenAmount, formatUsd } from "@/lib/tokens";
 
 const ETHEREUM_USDC_ADDRESS = "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
 
-type Tab = "assets" | "contacts" | "send";
+type Tab = "assets" | "send" | "contacts";
 
 type TokenRow = {
   symbol: string;
@@ -38,8 +38,32 @@ function isValidContactDestination(value: string) {
   return isAddress(value) || /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(value);
 }
 
+function parseTab(value: string | null): Tab {
+  if (value === "assets" || value === "send" || value === "contacts") {
+    return value;
+  }
+  return "assets";
+}
+
+function parseSendMode(value: string | null, hasRecipient: boolean): SendMode {
+  if (value === "gift" || value === "transfer") return value;
+  return hasRecipient ? "transfer" : "gift";
+}
+
+function tabTitle(tab: Tab) {
+  switch (tab) {
+    case "assets":
+      return "Portfolio";
+    case "send":
+      return "Send";
+    case "contacts":
+      return "Contacts";
+  }
+}
+
 export default function Dashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { ready, authenticated } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
   const { addFunds } = useAddFunds();
@@ -50,7 +74,11 @@ export default function Dashboard() {
         candidate.walletClientType === "privy-v2",
     ) ?? wallets[0];
 
-  const [tab, setTab] = useState<Tab>("assets");
+  const recipient = searchParams.get("recipient")?.trim() ?? "";
+  const tab = parseTab(searchParams.get("tab"));
+  const sendMode = parseSendMode(searchParams.get("mode"), Boolean(recipient));
+
+  const [balancesVersion, setBalancesVersion] = useState(0);
   const [funding, setFunding] = useState(false);
   const [fundingError, setFundingError] = useState<string | null>(null);
   const [contactName, setContactName] = useState("");
@@ -75,21 +103,20 @@ export default function Dashboard() {
     : [];
   const ensName = walletAddress ? getEnsByAddress(walletAddress) : null;
   const balances = walletAddress ? getBalancesByAddress(walletAddress) : null;
-  const tokens = useMemo<TokenRow[]>(
-    () =>
-      DASHBOARD_TOKENS.map((token) => {
-        const rawBalance =
-          balances?.[token.symbol as keyof typeof balances] ?? "0";
-        const balance = Number(formatUnits(BigInt(rawBalance), token.decimals));
-        return {
-          symbol: token.symbol,
-          name: token.name,
-          balance,
-          valueUsd: balance * token.priceUsd,
-        };
-      }),
-    [balances],
-  );
+  const tokens = useMemo<TokenRow[]>(() => {
+    void balancesVersion;
+    return DASHBOARD_TOKENS.map((token) => {
+      const rawBalance =
+        balances?.[token.symbol as keyof typeof balances] ?? "0";
+      const balance = Number(formatUnits(BigInt(rawBalance), token.decimals));
+      return {
+        symbol: token.symbol,
+        name: token.name,
+        balance,
+        valueUsd: balance * token.priceUsd,
+      };
+    });
+  }, [balances, balancesVersion]);
   const loadingBalances = !walletsReady || !wallet?.address;
 
   const totalUsd = tokens.reduce((sum, token) => sum + token.valueUsd, 0);
@@ -98,6 +125,37 @@ export default function Dashboard() {
     (wallet?.address
       ? `${wallet.address.slice(0, 6)}…${wallet.address.slice(-4)}`
       : "Account");
+
+  function replaceDashboardQuery(next: {
+    tab?: Tab;
+    mode?: SendMode;
+    recipient?: string | null;
+  }) {
+    const params = new URLSearchParams();
+    const nextTab = next.tab ?? tab;
+    const nextMode = next.mode ?? sendMode;
+    const nextRecipient =
+      next.recipient === undefined ? recipient : (next.recipient ?? "");
+
+    if (nextTab !== "assets") params.set("tab", nextTab);
+    if (nextTab === "send") {
+      params.set("mode", nextMode);
+      if (nextMode === "transfer" && nextRecipient) {
+        params.set("recipient", nextRecipient);
+      }
+    }
+
+    const query = params.toString();
+    router.replace(query ? `/dashboard?${query}` : "/dashboard");
+  }
+
+  function openSendToRecipient(addressOrEns: string) {
+    replaceDashboardQuery({
+      tab: "send",
+      mode: "transfer",
+      recipient: addressOrEns,
+    });
+  }
 
   async function handleOnRamp() {
     if (!wallet?.address || funding) return;
@@ -176,6 +234,12 @@ export default function Dashboard() {
     );
   }
 
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "assets", label: "Assets" },
+    { id: "send", label: "Send" },
+    { id: "contacts", label: "Contacts" },
+  ];
+
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
@@ -184,11 +248,7 @@ export default function Dashboard() {
             Dashboard
           </p>
           <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            {tab === "assets"
-              ? "Portfolio"
-              : tab === "contacts"
-                ? "Contacts"
-                : "Send Gift"}
+            {tabTitle(tab)}
           </h1>
         </div>
         <AccountMenu
@@ -205,45 +265,22 @@ export default function Dashboard() {
           role="tablist"
           aria-label="Dashboard sections"
         >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "assets"}
-            onClick={() => setTab("assets")}
-            className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
-              tab === "assets"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-            }`}
-          >
-            Assets
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "send"}
-            onClick={() => setTab("send")}
-            className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
-              tab === "send"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-            }`}
-          >
-            Send
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "contacts"}
-            onClick={() => setTab("contacts")}
-            className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
-              tab === "contacts"
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-            }`}
-          >
-            Contacts
-          </button>
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.id}
+              onClick={() => replaceDashboardQuery({ tab: item.id })}
+              className={`min-h-11 rounded-lg px-2 text-sm font-medium transition-colors ${
+                tab === item.id
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                  : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
 
         {tab === "assets" ? (
@@ -309,7 +346,59 @@ export default function Dashboard() {
           </>
         ) : tab === "send" ? (
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-            <SendGiftForm />
+            <div
+              className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
+              role="tablist"
+              aria-label="Send mode"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={sendMode === "gift"}
+                onClick={() =>
+                  replaceDashboardQuery({
+                    tab: "send",
+                    mode: "gift",
+                    recipient: null,
+                  })
+                }
+                className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
+                  sendMode === "gift"
+                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                    : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                }`}
+              >
+                Send gift
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={sendMode === "transfer"}
+                onClick={() =>
+                  replaceDashboardQuery({
+                    tab: "send",
+                    mode: "transfer",
+                  })
+                }
+                className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
+                  sendMode === "transfer"
+                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                    : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                }`}
+              >
+                Send ETH
+              </button>
+            </div>
+            <div className="mt-5">
+              <SendGiftForm
+                key={`${sendMode}:${recipient}`}
+                mode={sendMode}
+                initialRecipient={recipient}
+                onTransferred={() =>
+                  setBalancesVersion((value) => value + 1)
+                }
+              />
+            </div>
           </section>
         ) : (
           <>
@@ -377,13 +466,24 @@ export default function Dashboard() {
                           {contact.addressOrEns}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveContact(contact.id)}
-                        className="shrink-0 rounded-lg px-3 py-2 text-sm text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
-                      >
-                        Remove
-                      </button>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openSendToRecipient(contact.addressOrEns)
+                          }
+                          className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-zinc-900"
+                        >
+                          Send
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveContact(contact.id)}
+                          className="rounded-lg px-3 py-2 text-sm text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

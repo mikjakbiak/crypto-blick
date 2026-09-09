@@ -1,4 +1,4 @@
-import { keccak256, parseEther, stringToBytes, type Hex } from "viem";
+import { isAddress, keccak256, parseEther, stringToBytes, type Hex } from "viem";
 
 const GIFTS_KEY = "crypto-blick:mock-gifts";
 const ENS_BY_ADDRESS_KEY = "crypto-blick:mock-ens-by-address";
@@ -71,7 +71,7 @@ export function getBalancesByAddress(address: string): MockTokenBalances {
   };
 }
 
-function creditGiftToAddress(address: string, gift: MockGift) {
+function setEthBalance(address: string, amountWei: string) {
   const normalized = normalizeAddress(address);
   const map = getBalancesByAddressMap();
   const balances = {
@@ -81,9 +81,79 @@ function creditGiftToAddress(address: string, gift: MockGift) {
 
   map[normalized] = {
     ...balances,
-    ETH: (BigInt(balances.ETH) + BigInt(gift.amountWei)).toString(),
+    ETH: amountWei,
   };
   writeJson(BALANCES_BY_ADDRESS_KEY, map);
+}
+
+function creditEthToAddress(address: string, amountWei: string) {
+  const normalized = normalizeAddress(address);
+  const current = getBalancesByAddress(normalized).ETH;
+  setEthBalance(normalized, (BigInt(current) + BigInt(amountWei)).toString());
+}
+
+function debitEthFromAddress(address: string, amountWei: string) {
+  const normalized = normalizeAddress(address);
+  const current = BigInt(getBalancesByAddress(normalized).ETH);
+  const amount = BigInt(amountWei);
+  if (current < amount) {
+    throw new Error("Insufficient ETH balance.");
+  }
+  setEthBalance(normalized, (current - amount).toString());
+}
+
+function creditGiftToAddress(address: string, gift: MockGift) {
+  creditEthToAddress(address, gift.amountWei);
+}
+
+export function getAddressByEns(ens: string): string | null {
+  const intended = ens.trim().toLowerCase();
+  const entry = Object.entries(getEnsByAddressMap()).find(
+    ([, value]) => value.toLowerCase() === intended,
+  );
+  return entry?.[0] ?? null;
+}
+
+/** Resolve an address or ENS name to a wallet address. */
+export function resolveRecipientAddress(recipient: string): string {
+  const trimmed = recipient.trim();
+  if (!trimmed) {
+    throw new Error("Enter a recipient address or ENS name.");
+  }
+
+  if (isAddress(trimmed)) {
+    return normalizeAddress(trimmed);
+  }
+
+  const byEns = getAddressByEns(trimmed);
+  if (!byEns) {
+    throw new Error(`Could not resolve ${trimmed} to an address.`);
+  }
+  return byEns;
+}
+
+/** Direct ETH transfer on the mocked chain (no claim code). */
+export function sendEthOnChain(
+  fromAddress: string,
+  recipient: string,
+  amountEth: string,
+): { from: string; to: string; amountWei: string } {
+  const from = normalizeAddress(fromAddress);
+  const to = resolveRecipientAddress(recipient);
+  const amountWei = parseEther(amountEth).toString();
+
+  if (from === to) {
+    throw new Error("Cannot send ETH to yourself.");
+  }
+
+  if (BigInt(amountWei) <= BigInt(0)) {
+    throw new Error("Enter a valid amount.");
+  }
+
+  debitEthFromAddress(from, amountWei);
+  creditEthToAddress(to, amountWei);
+
+  return { from, to, amountWei };
 }
 
 function getHardcodedTestGift(): MockGift {
@@ -181,13 +251,16 @@ export function isEnsAvailable(label: string, forAddress?: string) {
   return false;
 }
 
-export function claimGiftOnChain(
-  code: string,
-  label: string,
-  address: string,
-): { ens: string; codeHash: Hex } {
-  const ens = toFullEns(label);
-  const normalized = normalizeAddress(address);
+function markGiftClaimed(gift: MockGift) {
+  const gifts = readJson<Record<string, MockGift>>(GIFTS_KEY, {});
+  gifts[gift.codeHash] = {
+    ...normalizeGift(gift),
+    isClaimed: true,
+  };
+  writeJson(GIFTS_KEY, gifts);
+}
+
+function requireClaimableGift(code: string): MockGift {
   const gift = getGiftByCode(code);
 
   if (!gift) {
@@ -198,6 +271,19 @@ export function claimGiftOnChain(
     throw new Error("Gift code has already been claimed.");
   }
 
+  return gift;
+}
+
+/** Claim a gift and register an ENS name for the wallet. */
+export function claimGiftOnChain(
+  code: string,
+  label: string,
+  address: string,
+): { ens: string; codeHash: Hex } {
+  const ens = toFullEns(label);
+  const normalized = normalizeAddress(address);
+  const gift = requireClaimableGift(code);
+
   if (!isEnsAvailable(label, normalized)) {
     throw new Error(`${ens} is already taken.`);
   }
@@ -206,12 +292,7 @@ export function claimGiftOnChain(
   map[normalized] = ens;
   writeJson(ENS_BY_ADDRESS_KEY, map);
 
-  const gifts = readJson<Record<string, MockGift>>(GIFTS_KEY, {});
-  gifts[gift.codeHash] = {
-    ...normalizeGift(gift),
-    isClaimed: true,
-  };
-  writeJson(GIFTS_KEY, gifts);
+  markGiftClaimed(gift);
   creditGiftToAddress(normalized, gift);
 
   return { ens, codeHash: gift.codeHash };
