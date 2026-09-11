@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "crypto-blick-proving-poc",
+      "name": "crypto-blick-zk-wip",
       "dependencies": {
         "circomlib": "^2.0.5",
         "circomlibjs": "^0.1.7",

@@ -2,7 +2,7 @@
 
 Browser-generated PLONK proof that the prover knows a gift code. On-chain verification on EVM. The code never leaves the client. The proof is bound to a claimant address, so it cannot be replayed for anyone else.
 
-This folder is a standalone lab for the claim path in `mission.md`. It does not replace the mock chain in the Next.js app.
+This folder (`zk-wip`) is a standalone lab for the claim path in `mission.md`. It does not replace the mock chain in the Next.js app.
 
 ## Why PLONK
 
@@ -60,7 +60,7 @@ mkdir -p .bin
 curl -L -o .bin/circom https://github.com/iden3/circom/releases/download/v2.2.3/circom-macos-amd64
 chmod +x .bin/circom
 
-cd proving-poc
+cd zk-wip
 bun install
 forge install foundry-rs/forge-std --no-git --root contracts
 bun run setup          # compile circuit, PLONK zkey, fixtures, Solidity verifier

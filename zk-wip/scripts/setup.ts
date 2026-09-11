@@ -60,7 +60,7 @@ async function resolveCircom() {
     }
   }
 
-  throw new Error("circom not found. Put a binary at proving-poc/.bin/circom or set CIRCOM.");
+  throw new Error("circom not found. Put a binary at zk-wip/.bin/circom or set CIRCOM.");
 }
 
 async function generatePtau(destination: string) {
