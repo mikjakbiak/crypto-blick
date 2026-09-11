@@ -1,0 +1,25 @@
+{
+  "name": "crypto-blick-proving-poc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "bun scripts/setup.ts",
+    "test:circuit": "bun scripts/test-circuit.ts",
+    "test:contracts": "forge test --root contracts -vvv",
+    "test": "bun run test:circuit && bun run test:contracts",
+    "e2e": "forge build --root contracts && bun scripts/e2e-anvil.ts",
+    "web": "vite --config web/vite.config.ts",
+    "build:web": "vite build --config web/vite.config.ts"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
+    "poseidon-lite": "^0.3.0",
+    "snarkjs": "^0.7.6",
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
+  }
+}

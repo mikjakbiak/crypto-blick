@@ -1,0 +1,15 @@
+node_modules
+.bin
+artifacts
+contracts/out
+contracts/out-honk
+contracts/cache
+contracts/lib
+web/dist
+web/public/*.wasm
+web/public/*.zkey
+web/public/verification_key.json
+web/public/snarkjs.min.js
+contracts/src/PlonkVerifier.sol
+*.ptau
+.DS_Store
