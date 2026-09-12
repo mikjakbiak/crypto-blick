@@ -19,8 +19,6 @@ bun install
 # see zk-wip/README.md
 ```
 
-Root `package.json` still lists `pnpm`; use **bun**.
-
 ---
 
 ## Build plan
