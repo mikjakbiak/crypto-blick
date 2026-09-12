@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, copyFile, access, stat, rm } from "node:fs/promises";
+import { mkdir, readFile, writeFile, copyFile, access, stat, rm, chmod } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
@@ -11,6 +11,8 @@ import { hashCode, hashLimbs } from "../lib/zk/poseidon";
 import { codeToLimbs } from "../lib/zk/code";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
+
+const CIRCOM_RELEASE = "v2.2.3";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ARTIFACTS = path.join(ROOT, "artifacts");
@@ -65,27 +67,66 @@ function snarkjs(args: string[], inherit = true) {
   });
 }
 
+function circomReleaseAsset() {
+  const { platform, arch } = process;
+  if (platform === "linux" && arch === "x64") return "circom-linux-amd64";
+  if (platform === "darwin" && (arch === "x64" || arch === "arm64")) {
+    return "circom-macos-amd64";
+  }
+  if (platform === "win32" && arch === "x64") return "circom-windows-amd64.exe";
+  return null;
+}
+
+async function works(command: string) {
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(command, ["--version"], { stdio: "ignore" });
+      child.on("error", reject);
+      child.on("close", (code) => (code === 0 ? resolve() : reject(new Error("fail"))));
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function installCircom(destination: string) {
+  const asset = circomReleaseAsset();
+  if (!asset) {
+    throw new Error(
+      `circom not found and no prebuilt binary for ${process.platform}-${process.arch}. Put a binary at .bin/circom or set CIRCOM.`,
+    );
+  }
+  const url = `https://github.com/iden3/circom/releases/download/${CIRCOM_RELEASE}/${asset}`;
+  console.log(`circom not on PATH; downloading ${CIRCOM_RELEASE} (${asset})`);
+  const response = await fetch(url, { redirect: "follow" });
+  if (!response.ok) {
+    throw new Error(`failed to download circom: ${response.status} ${url}`);
+  }
+  await mkdir(path.dirname(destination), { recursive: true });
+  await writeFile(destination, Buffer.from(await response.arrayBuffer()));
+  await chmod(destination, 0o755);
+  if (!(await works(destination))) {
+    throw new Error(
+      `downloaded circom at ${destination} did not run. Put a native binary at .bin/circom or set CIRCOM.`,
+    );
+  }
+  return destination;
+}
+
 async function resolveCircom() {
+  const local = path.join(ROOT, ".bin", "circom");
   const candidates = [
     process.env.CIRCOM,
-    path.join(ROOT, ".bin", "circom"),
+    local,
     path.join(ROOT, "zk-wip", ".bin", "circom"),
     "circom",
   ].filter((value): value is string => Boolean(value));
 
   for (const candidate of candidates) {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const child = spawn(candidate, ["--version"], { stdio: "ignore" });
-        child.on("error", reject);
-        child.on("close", (code) => (code === 0 ? resolve() : reject(new Error("fail"))));
-      });
-      return candidate;
-    } catch {
-      // next
-    }
+    if (await works(candidate)) return candidate;
   }
-  throw new Error("circom not found. Put binary at .bin/circom or set CIRCOM.");
+  return installCircom(local);
 }
 
 async function generatePtau(destination: string) {

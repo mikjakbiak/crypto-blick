@@ -13,7 +13,7 @@ bun dev
 
 Env: see `.env.example`. `ALCHEMY_API_KEY` stays server-side (`/api/rpc`, `/api/balances`, `/api/ens`). Deployer key is `DEPLOYER_PRIVATE_KEY`. After deploy, `NEXT_PUBLIC_GIFT_CLAIMER`, `NEXT_PUBLIC_USERNAME_REGISTRAR`, and `NEXT_PUBLIC_ENS_PARENT` are written into `.env`.
 
-Needs Foundry (`forge`) and `circom` on PATH or at `.bin/circom`.
+Needs Foundry (`forge`). `bun run zk:setup` installs `circom` into `.bin/` if it is not already on PATH.
 
 Needs `NEXT_PUBLIC_PRIVY_APP_ID` (optional `NEXT_PUBLIC_PRIVY_CLIENT_ID`). Privy default chain in code is Sepolia.
 
