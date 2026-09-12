@@ -45,3 +45,24 @@ export function fieldToAddress(value: bigint): string {
 export function toDecimal(value: bigint): string {
   return value.toString(10);
 }
+
+export function extractGiftCode(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+
+  const queryIndex = trimmed.indexOf("?");
+  if (queryIndex !== -1) {
+    const fromQuery = new URLSearchParams(trimmed.slice(queryIndex + 1)).get(
+      "code",
+    );
+    if (fromQuery?.trim()) return fromQuery.trim();
+  }
+
+  return trimmed;
+}
+
+export function generateGiftCode() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}

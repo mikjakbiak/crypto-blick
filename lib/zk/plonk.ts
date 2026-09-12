@@ -1,4 +1,4 @@
-import { toHex } from "./snark.ts";
+import { toHex } from "./snark";
 
 export type PlonkProof = {
   A: string[];
@@ -25,7 +25,7 @@ function g1(point: string[]): [string, string] {
 }
 
 /** Flatten a snarkjs PLONK proof into the uint256[24] verifier calldata. */
-export function plonkProofToCalldata(proof: PlonkProof): string[] {
+export function plonkProofToCalldata(proof: PlonkProof): `0x${string}`[] {
   const parts = [
     ...g1(proof.A),
     ...g1(proof.B),
@@ -46,5 +46,15 @@ export function plonkProofToCalldata(proof: PlonkProof): string[] {
   if (parts.length !== 24) {
     throw new Error(`Expected 24 PLONK proof limbs, got ${parts.length}.`);
   }
-  return parts;
+  return parts as `0x${string}`[];
+}
+
+export type PlonkProofTuple = readonly [
+  bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint,
+  bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint,
+  bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint,
+];
+
+export function plonkProofTuple(proof: PlonkProof): PlonkProofTuple {
+  return plonkProofToCalldata(proof).map((value) => BigInt(value)) as unknown as PlonkProofTuple;
 }

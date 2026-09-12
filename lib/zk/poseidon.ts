@@ -1,10 +1,10 @@
 import { poseidon2 } from "poseidon-lite";
-import { codeToLimbs } from "./code.ts";
+import { codeToLimbs } from "./code";
 
 export function hashLimbs(limbs: [bigint, bigint]): bigint {
   return poseidon2(limbs);
 }
 
-export async function hashCode(code: string): Promise<bigint> {
+export function hashCode(code: string): bigint {
   return hashLimbs(codeToLimbs(code));
 }

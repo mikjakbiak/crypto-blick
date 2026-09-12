@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Test} from "forge-std/Test.sol";
+import {FreeUsernameRegistrar, IPermissionedResolver, IUserRegistry} from "../src/FreeUsernameRegistrar.sol";
+
+contract MockRegistry {
+    uint256 public nextId = 1;
+
+    function register(string calldata, address, address, address, uint256, uint64) external returns (uint256 tokenId) {
+        tokenId = nextId++;
+    }
+}
+
+contract MockResolver {
+    mapping(bytes32 => address) public addrOf;
+
+    function setAddr(bytes32 node, address addr) external {
+        addrOf[node] = addr;
+    }
+}
+
+contract FreeUsernameRegistrarTest is Test {
+    MockRegistry internal registry;
+    MockResolver internal resolver;
+    FreeUsernameRegistrar internal registrar;
+    bytes32 internal parentNode;
+
+    address internal constant USER = address(uint160(0xA11CE));
+
+    function setUp() public {
+        registry = new MockRegistry();
+        resolver = new MockResolver();
+        parentNode = keccak256("gift.eth");
+        registrar = new FreeUsernameRegistrar(
+            IUserRegistry(address(registry)), IPermissionedResolver(address(resolver)), parentNode
+        );
+    }
+
+    function test_registerStoresLabelAndSetsAddr() public {
+        vm.prank(USER);
+        uint256 tokenId = registrar.register("beeinger", USER);
+        assertEq(tokenId, 1);
+        assertEq(registrar.labelOf(USER), "beeinger");
+        assertFalse(registrar.isAvailable("beeinger"));
+        bytes32 node = keccak256(abi.encodePacked(parentNode, keccak256(bytes("beeinger"))));
+        assertEq(resolver.addrOf(node), USER);
+    }
+
+    function test_secondNameForOwnerReverts() public {
+        vm.startPrank(USER);
+        registrar.register("one", USER);
+        vm.expectRevert(FreeUsernameRegistrar.AlreadyNamed.selector);
+        registrar.register("two", USER);
+        vm.stopPrank();
+    }
+
+    function test_takenLabelReverts() public {
+        vm.prank(USER);
+        registrar.register("taken", USER);
+        address other = address(uint160(0xB0B));
+        vm.prank(other);
+        vm.expectRevert(FreeUsernameRegistrar.LabelTaken.selector);
+        registrar.register("taken", other);
+    }
+}

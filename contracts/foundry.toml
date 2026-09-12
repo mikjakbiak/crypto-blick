@@ -9,7 +9,12 @@ evm_version = "cancun"
 fs_permissions = [{ access = "read", path = "../artifacts" }]
 
 [lint]
-exclude_lints = ["screaming-snake-case-const", "mixed-case-variable", "unsafe-cheatcode", "screaming-snake-case-immutable"]
+exclude_lints = [
+  "screaming-snake-case-const",
+  "mixed-case-variable",
+  "unsafe-cheatcode",
+  "screaming-snake-case-immutable",
+]
 
 [rpc_endpoints]
-anvil = "http://127.0.0.1:8545"
+sepolia = "${SEPOLIA_RPC_URL}"

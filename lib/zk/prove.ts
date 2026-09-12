@@ -1,14 +1,15 @@
-import { addressToField, codeToLimbs, toDecimal } from "./code.ts";
-import { hashLimbs } from "./poseidon.ts";
-import type { CircuitInput } from "./snark.ts";
+import { addressToField, codeToLimbs, toDecimal } from "./code";
+import { hashLimbs } from "./poseidon";
+import type { CircuitInput } from "./snark";
+import type { PlonkProof } from "./plonk";
 
 export type ProveArtifacts = {
   wasm: Uint8Array | string;
   zkey: Uint8Array | string;
 };
 
-export type ProveResult<P = unknown> = {
-  proof: P;
+export type ProveResult = {
+  proof: PlonkProof;
   publicSignals: [string, string];
   codeHash: bigint;
   claimant: bigint;
@@ -31,12 +32,12 @@ export function buildCircuitInput(code: string, claimant: string): CircuitInput 
   };
 }
 
-export async function proveClaim<P = unknown>(
+export async function proveClaim(
   prover: SnarkProveApi,
   artifacts: ProveArtifacts,
   code: string,
   claimant: string,
-): Promise<ProveResult<P>> {
+): Promise<ProveResult> {
   const input = buildCircuitInput(code, claimant);
   const expectedHash = hashLimbs(codeToLimbs(code));
   const started = performance.now();
@@ -48,7 +49,9 @@ export async function proveClaim<P = unknown>(
   const elapsedMs = performance.now() - started;
 
   if (publicSignals.length !== 2) {
-    throw new Error(`Circuit must expose 2 public signals, got ${publicSignals.length}.`);
+    throw new Error(
+      `Circuit must expose 2 public signals, got ${publicSignals.length}.`,
+    );
   }
 
   const codeHash = BigInt(publicSignals[0]!);
@@ -62,7 +65,7 @@ export async function proveClaim<P = unknown>(
   }
 
   return {
-    proof: proof as P,
+    proof: proof as PlonkProof,
     publicSignals: [publicSignals[0]!, publicSignals[1]!],
     codeHash,
     claimant: claimantOut,
