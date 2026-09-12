@@ -21,14 +21,11 @@ import {
   removeContact,
   subscribeToContacts,
 } from "@/lib/contacts";
-import { getBalancesByAddress, getEnsByAddress } from "@/lib/mock-chain";
 import UsernameForm from "@/components/username-form";
 import useResumeGiftClaim from "@/components/use-resume-gift-claim";
 import { homePath } from "@/lib/paths";
 import { resolveClaimCode } from "@/lib/claim-code";
 import { DASHBOARD_TOKENS, formatTokenAmount, formatUsd } from "@/lib/tokens";
-
-const ETHEREUM_USDC_ADDRESS = "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
 
 type Tab = "assets" | "send" | "contacts";
 
@@ -40,7 +37,11 @@ type TokenRow = {
 };
 
 function isValidContactDestination(value: string) {
-  return isAddress(value) || /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(value);
+  return (
+    isAddress(value) ||
+    /^[a-z0-9-]+$/i.test(value) ||
+    /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(value)
+  );
 }
 
 function parseTab(value: string | null): Tab {
@@ -83,6 +84,13 @@ export default function Dashboard() {
   const tab = parseTab(searchParams.get("tab"));
   const sendMode = parseSendMode(searchParams.get("mode"), Boolean(recipient));
 
+  const [balances, setBalances] = useState<{
+    ETH: string;
+    USDC: string;
+    USDT: string;
+  } | null>(null);
+  const [ensName, setEnsName] = useState<string | null>(null);
+  const [ensReady, setEnsReady] = useState(false);
   const [balancesVersion, setBalancesVersion] = useState(0);
   const [usernameVersion, setUsernameVersion] = useState(0);
   const [funding, setFunding] = useState(false);
@@ -97,28 +105,54 @@ export default function Dashboard() {
   );
 
   const pendingCode = resolveClaimCode(searchParams.get("code"));
+  const walletAddress = wallet?.address;
+
+  useEffect(() => {
+    if (!walletAddress) return;
+    let cancelled = false;
+    async function load() {
+      const [balanceRes, ensRes] = await Promise.all([
+        fetch(`/api/balances?address=${walletAddress}`),
+        fetch(`/api/ens?address=${walletAddress}`),
+      ]);
+      const nextBalances = (await balanceRes.json()) as {
+        ETH?: string;
+        USDC?: string;
+        USDT?: string;
+      };
+      const nextEns = (await ensRes.json()) as { ens?: string | null };
+      if (cancelled) return;
+      setBalances({
+        ETH: nextBalances.ETH ?? "0",
+        USDC: nextBalances.USDC ?? "0",
+        USDT: nextBalances.USDT ?? "0",
+      });
+      setEnsName(nextEns.ens ?? null);
+      setEnsReady(true);
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [walletAddress, balancesVersion, usernameVersion]);
 
   useEffect(() => {
     if (!ready || authenticated) return;
     router.replace(homePath(pendingCode || null));
   }, [ready, authenticated, router, pendingCode]);
 
-  const walletAddress = wallet?.address;
-  void usernameVersion;
   const contacts = walletAddress
     ? getContacts(walletAddress, contactsSnapshot)
     : [];
-  const ensName = walletAddress ? getEnsByAddress(walletAddress) : null;
   const claim = useResumeGiftClaim(
     authenticated ? walletAddress : undefined,
-    ensName,
+    walletAddress ? ensName : null,
   );
-  const balances = walletAddress ? getBalancesByAddress(walletAddress) : null;
   const tokens = useMemo<TokenRow[]>(() => {
-    void balancesVersion;
+    const source = walletAddress ? balances : null;
     return DASHBOARD_TOKENS.map((token) => {
       const rawBalance =
-        balances?.[token.symbol as keyof typeof balances] ?? "0";
+        source?.[token.symbol as keyof typeof source] ?? "0";
       const balance = Number(formatUnits(BigInt(rawBalance), token.decimals));
       return {
         symbol: token.symbol,
@@ -127,7 +161,7 @@ export default function Dashboard() {
         valueUsd: balance * token.priceUsd,
       };
     });
-  }, [balances, balancesVersion]);
+  }, [balances, walletAddress]);
   const loadingBalances = !walletsReady || !wallet?.address;
 
   const totalUsd = tokens.reduce((sum, token) => sum + token.valueUsd, 0);
@@ -179,8 +213,8 @@ export default function Dashboard() {
       await addFunds({
         destination: {
           address: wallet.address,
-          chain: "eip155:1",
-          asset: ETHEREUM_USDC_ADDRESS,
+          chain: "eip155:11155111",
+          asset: "native-currency",
         },
         fiat: {
           source: {
@@ -248,7 +282,7 @@ export default function Dashboard() {
     );
   }
 
-  if (walletsReady && walletAddress && !ensName) {
+  if (walletsReady && walletAddress && ensReady && !ensName) {
     return (
       <div className="relative flex flex-1 flex-col">
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">

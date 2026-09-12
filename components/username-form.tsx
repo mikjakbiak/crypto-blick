@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useWallets } from "@privy-io/react-auth";
+import { usernameRegistrarAbi } from "@/lib/chain/abi";
+import { publicContracts } from "@/lib/chain/config";
 import {
-  ENS_SUFFIX,
-  isEnsAvailable,
+  ensParent,
   isValidEnsLabel,
   normalizeEnsLabel,
-  registerUsernameOnChain,
-  toFullEns,
-} from "@/lib/mock-chain";
+  toFullUsername,
+} from "@/lib/chain/ens";
+import { walletClientFromPrivy } from "@/lib/chain/wallet";
 
 type UsernameFormProps = {
   address: string;
@@ -25,11 +27,17 @@ export default function UsernameForm({
   address,
   onRegistered,
 }: UsernameFormProps) {
+  const { wallets } = useWallets();
+  const wallet =
+    wallets.find(
+      (candidate) => candidate.address.toLowerCase() === address.toLowerCase(),
+    ) ?? wallets[0];
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const suffix = `.${ensParent()}`;
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
@@ -40,15 +48,35 @@ export default function UsernameForm({
         setError("Username can’t contain dots or special characters.");
         return;
       }
-      if (!isEnsAvailable(normalized, address)) {
-        setError(`${toFullEns(normalized)} is already taken.`);
+      if (!wallet) {
+        setError("Your wallet is still loading.");
         return;
       }
-      const ens = registerUsernameOnChain(normalized, address);
-      onRegistered(ens);
+
+      const availableRes = await fetch(
+        `/api/ens?available=${encodeURIComponent(normalized)}`,
+      );
+      const availableJson = (await availableRes.json()) as {
+        available?: boolean;
+      };
+      if (!availableJson.available) {
+        setError(`${toFullUsername(normalized)} is already taken.`);
+        return;
+      }
+
+      const client = await walletClientFromPrivy(wallet);
+      await client.writeContract({
+        address: publicContracts().usernameRegistrar,
+        abi: usernameRegistrarAbi,
+        functionName: "register",
+        args: [normalized, address as `0x${string}`],
+      });
+      onRegistered(toFullUsername(normalized));
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : "Could not register username.",
+        caught instanceof Error
+          ? caught.message
+          : "Could not register username.",
       );
     } finally {
       setBusy(false);
@@ -75,7 +103,7 @@ export default function UsernameForm({
             className={inputClassName}
           />
           <span className="flex shrink-0 items-center border-l border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
-            {ENS_SUFFIX}
+            {suffix}
           </span>
         </div>
       </label>
@@ -85,7 +113,7 @@ export default function UsernameForm({
       ) : null}
 
       <button type="submit" disabled={busy} className={primaryButtonClassName}>
-        {busy ? "Checking…" : "Continue"}
+        {busy ? "Registering on Sepolia…" : "Continue"}
       </button>
     </form>
   );

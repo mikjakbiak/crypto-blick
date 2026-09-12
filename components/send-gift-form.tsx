@@ -2,12 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { useWallets } from "@privy-io/react-auth";
-import { formatEther, isAddress } from "viem";
-import {
-  generateGiftCode,
-  saveGiftOnChain,
-  sendEthOnChain,
-} from "@/lib/mock-chain";
+import { isAddress, parseEther } from "viem";
+import { giftClaimerAbi } from "@/lib/chain/abi";
+import { publicContracts } from "@/lib/chain/config";
+import { walletClientFromPrivy } from "@/lib/chain/wallet";
+import { generateGiftCode } from "@/lib/zk/code";
+import { hashCode } from "@/lib/zk/poseidon";
+import { toHex } from "@/lib/zk/snark";
+import { rememberSentGiftCode } from "@/lib/sent-gifts";
 
 export type SendMode = "gift" | "transfer";
 
@@ -41,7 +43,7 @@ const primaryButtonClassName =
   "min-h-12 w-full rounded-xl bg-zinc-900 px-4 text-base font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white";
 
 function isValidRecipient(value: string) {
-  return isAddress(value) || /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(value);
+  return isAddress(value) || /^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/i.test(value);
 }
 
 export default function SendGiftForm({
@@ -85,8 +87,12 @@ export default function SendGiftForm({
         setSendError("Enter a valid amount.");
         return;
       }
+      if (!wallet?.address) {
+        setSendError("Your wallet is still loading.");
+        return;
+      }
 
-      await new Promise((resolve) => window.setTimeout(resolve, 400));
+      const client = await walletClientFromPrivy(wallet);
 
       if (mode === "transfer") {
         const trimmedRecipient = recipient.trim();
@@ -98,41 +104,54 @@ export default function SendGiftForm({
           setSendError("Enter a valid Ethereum address or ENS name.");
           return;
         }
-        if (!wallet?.address) {
-          setSendError("Your wallet is still loading.");
-          return;
+
+        const lookup = await fetch(
+          `/api/ens?name=${encodeURIComponent(trimmedRecipient)}`,
+        );
+        const resolved = (await lookup.json()) as {
+          address?: string;
+          error?: string;
+        };
+        if (!lookup.ok || !resolved.address) {
+          throw new Error(resolved.error ?? "Could not resolve recipient.");
         }
 
-        const transfer = sendEthOnChain(
-          wallet.address,
-          trimmedRecipient,
-          amount,
-        );
+        await client.sendTransaction({
+          to: resolved.address as `0x${string}`,
+          value: parseEther(amount),
+        });
         setSendResult({
           kind: "transfer",
-          amountEth: formatEther(BigInt(transfer.amountWei)),
+          amountEth: amount,
           recipient: trimmedRecipient,
-          toAddress: transfer.to,
+          toAddress: resolved.address,
         });
         onTransferred?.();
         return;
       }
 
-      if (!wallet?.address) {
-        setSendError("Your wallet is still loading.");
-        return;
-      }
-
       const code = generateGiftCode();
-      const gift = saveGiftOnChain(code, amount, wallet.address);
-      const link = `${window.location.origin}/?code=${encodeURIComponent(code)}`;
+      const codeHash = hashCode(code);
+      await client.writeContract({
+        address: publicContracts().giftClaimer,
+        abi: giftClaimerAbi,
+        functionName: "createGift",
+        args: [codeHash],
+        value: parseEther(amount),
+      });
+
+      rememberSentGiftCode(wallet.address, {
+        codeHash: toHex(codeHash),
+        code,
+        createdAt: Date.now(),
+      });
 
       setSendResult({
         kind: "gift",
         code,
-        codeHash: gift.codeHash,
+        codeHash: toHex(codeHash),
         amountEth: amount,
-        link,
+        link: `${window.location.origin}/?code=${encodeURIComponent(code)}`,
       });
     } catch (error) {
       setSendError(
@@ -148,7 +167,7 @@ export default function SendGiftForm({
       <div className="flex flex-col gap-4 text-left">
         <div>
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Sent
+            Sent on Sepolia
           </p>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Transferred {sendResult.amountEth} ETH to {sendResult.recipient}
@@ -176,7 +195,7 @@ export default function SendGiftForm({
       <div className="flex flex-col gap-4 text-left">
         <div>
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Gift created
+            Gift locked on Sepolia
           </p>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Locked {sendResult.amountEth} ETH
@@ -250,7 +269,7 @@ export default function SendGiftForm({
             name="recipient"
             value={recipient}
             onChange={(event) => setRecipient(event.target.value)}
-            placeholder="0x… or name.eth"
+            placeholder="username, name.eth, or 0x…"
             autoComplete="off"
             spellCheck={false}
             className={`${inputClassName} font-mono text-sm`}
@@ -291,8 +310,8 @@ export default function SendGiftForm({
       >
         {sendBusy
           ? mode === "transfer"
-            ? "Sending…"
-            : "Saving on chain…"
+            ? "Sending on Sepolia…"
+            : "Locking on Sepolia…"
           : mode === "transfer"
             ? "Send ETH"
             : "Send"}

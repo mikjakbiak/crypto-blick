@@ -2,12 +2,12 @@ export type TokenDefinition = {
   symbol: string;
   name: string;
   decimals: number;
-  /** Mock USD price used for portfolio totals. */
+  /** Display USD price used for portfolio totals. */
   priceUsd: number;
   kind: "native" | "erc20";
 };
 
-/** Tokens shown on the dashboard. ETH balance is live; others start at 0. */
+/** Tokens shown on the dashboard. Balances come from Alchemy on Sepolia. */
 export const DASHBOARD_TOKENS: TokenDefinition[] = [
   {
     symbol: "ETH",

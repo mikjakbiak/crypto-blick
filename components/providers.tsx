@@ -1,7 +1,7 @@
 "use client";
 
 import { PrivyProvider } from "@privy-io/react-auth";
-import { mainnet, sepolia } from "viem/chains";
+import { sepolia } from "viem/chains";
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
@@ -22,7 +22,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           loginMessage: "Log in or create an account.",
         },
         defaultChain: sepolia,
-        supportedChains: [mainnet, sepolia],
+        supportedChains: [sepolia],
         embeddedWallets: {
           ethereum: {
             createOnLogin: "users-without-wallets",

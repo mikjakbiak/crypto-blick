@@ -3,13 +3,13 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import {
-  extractGiftCode,
-  getGiftByCode,
-  isGiftHashOnChain,
-} from "@/lib/mock-chain";
+import { createPublicClient, http } from "viem";
+import { giftClaimerAbi } from "@/lib/chain/abi";
+import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
 import { dashboardPath, homePath } from "@/lib/paths";
 import { rememberClaimCode } from "@/lib/claim-code";
+import { extractGiftCode } from "@/lib/zk/code";
+import { hashCode } from "@/lib/zk/poseidon";
 
 type GiftCardProps = {
   initialCode?: string;
@@ -40,12 +40,22 @@ export default function GiftCard({ initialCode }: GiftCardProps) {
         return;
       }
 
-      if (!isGiftHashOnChain(code)) {
+      const client = createPublicClient({
+        chain: APP_CHAIN,
+        transport: http("/api/rpc"),
+      });
+      const gift = await client.readContract({
+        address: publicContracts().giftClaimer,
+        abi: giftClaimerAbi,
+        functionName: "gifts",
+        args: [hashCode(code)],
+      });
+
+      if (gift[0] === "0x0000000000000000000000000000000000000000") {
         setClaimError("Gift code was not found on chain.");
         return;
       }
-
-      if (getGiftByCode(code)?.isClaimed) {
+      if (gift[2]) {
         setClaimError("Gift code has already been claimed.");
         return;
       }
@@ -90,7 +100,7 @@ export default function GiftCard({ initialCode }: GiftCardProps) {
         disabled={claimBusy}
         className={primaryButtonClassName}
       >
-        {claimBusy ? "Checking…" : "Claim gift"}
+        {claimBusy ? "Checking Sepolia…" : "Claim gift"}
       </button>
     </form>
   );
