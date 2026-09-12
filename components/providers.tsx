@@ -18,8 +18,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       config={{
         appearance: {
           walletChainType: "ethereum-only",
-          landingHeader: "Create an account",
-          loginMessage: "Create an account to claim your gift.",
+          landingHeader: "Crypto Blick",
+          loginMessage: "Log in or create an account.",
         },
         defaultChain: sepolia,
         supportedChains: [mainnet, sepolia],

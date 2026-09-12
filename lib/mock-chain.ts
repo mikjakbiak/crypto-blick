@@ -1,9 +1,9 @@
 import { isAddress, keccak256, parseEther, stringToBytes, type Hex } from "viem";
 
 const GIFTS_KEY = "crypto-blick:mock-gifts";
+const GIFTS_EVENT = "crypto-blick:gifts-changed";
 const ENS_BY_ADDRESS_KEY = "crypto-blick:mock-ens-by-address";
 const BALANCES_BY_ADDRESS_KEY = "crypto-blick:mock-balances-by-address";
-const PENDING_CLAIM_KEY = "crypto-blick:pending-claim";
 
 export const ENS_SUFFIX = ".gift.eth";
 export const HARDCODED_TEST_CODE = "1234";
@@ -13,11 +13,8 @@ export type MockGift = {
   amountWei: string;
   createdAt: number;
   isClaimed: boolean;
-};
-
-export type PendingClaim = {
-  code: string;
-  label: string;
+  sender: string | null;
+  code: string | null;
 };
 
 export type MockTokenBalances = {
@@ -50,6 +47,13 @@ function readJson<T>(key: string, fallback: T): T {
 function writeJson(key: string, value: unknown) {
   if (!canUseStorage()) return;
   window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function writeGifts(gifts: Record<string, MockGift>) {
+  writeJson(GIFTS_KEY, gifts);
+  if (canUseStorage()) {
+    window.dispatchEvent(new Event(GIFTS_EVENT));
+  }
 }
 
 function normalizeAddress(address: string) {
@@ -163,6 +167,8 @@ function getHardcodedTestGift(): MockGift {
     amountWei: parseEther("0.01").toString(),
     createdAt: 0,
     isClaimed: false,
+    sender: null,
+    code: HARDCODED_TEST_CODE,
   };
 }
 
@@ -170,6 +176,8 @@ function normalizeGift(gift: MockGift): MockGift {
   return {
     ...gift,
     isClaimed: gift.isClaimed ?? false,
+    sender: gift.sender ?? null,
+    code: gift.code ?? null,
   };
 }
 
@@ -195,20 +203,73 @@ export function hashGiftCode(code: string): Hex {
   return keccak256(stringToBytes(code.trim()));
 }
 
-export function saveGiftOnChain(code: string, amountEth: string): MockGift {
+/** Accept a raw code or a gift URL (`/?code=`). */
+export function extractGiftCode(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+
+  const queryIndex = trimmed.indexOf("?");
+  if (queryIndex !== -1) {
+    const fromQuery = new URLSearchParams(trimmed.slice(queryIndex + 1)).get(
+      "code",
+    );
+    if (fromQuery?.trim()) return fromQuery.trim();
+  }
+
+  return trimmed;
+}
+
+export function saveGiftOnChain(
+  code: string,
+  amountEth: string,
+  fromAddress: string,
+): MockGift {
   const codeHash = hashGiftCode(code);
   const gift: MockGift = {
     codeHash,
     amountWei: parseEther(amountEth).toString(),
     createdAt: Date.now(),
     isClaimed: false,
+    sender: normalizeAddress(fromAddress),
+    code,
   };
 
   const gifts = readJson<Record<string, MockGift>>(GIFTS_KEY, {});
   gifts[codeHash] = gift;
-  writeJson(GIFTS_KEY, gifts);
+  writeGifts(gifts);
 
   return gift;
+}
+
+export function subscribeToGifts(onStoreChange: () => void) {
+  if (!canUseStorage()) return () => {};
+
+  function onStorage(event: StorageEvent) {
+    if (event.key === GIFTS_KEY) onStoreChange();
+  }
+
+  window.addEventListener(GIFTS_EVENT, onStoreChange);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(GIFTS_EVENT, onStoreChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+export function getGiftsSnapshot() {
+  if (!canUseStorage()) return "{}";
+  return window.localStorage.getItem(GIFTS_KEY) ?? "{}";
+}
+
+export function getServerGiftsSnapshot() {
+  return "{}";
+}
+
+export function getSentGifts(fromAddress: string): MockGift[] {
+  const sender = normalizeAddress(fromAddress);
+  return Object.values(getGiftsOnChain())
+    .filter((gift) => gift.sender === sender)
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function isGiftHashOnChain(code: string): boolean {
@@ -257,7 +318,7 @@ function markGiftClaimed(gift: MockGift) {
     ...normalizeGift(gift),
     isClaimed: true,
   };
-  writeJson(GIFTS_KEY, gifts);
+  writeGifts(gifts);
 }
 
 function requireClaimableGift(code: string): MockGift {
@@ -274,39 +335,40 @@ function requireClaimableGift(code: string): MockGift {
   return gift;
 }
 
-/** Claim a gift and register an ENS name for the wallet. */
-export function claimGiftOnChain(
-  code: string,
+/** Mint the free username for this wallet. Independent of gift claims. */
+export function registerUsernameOnChain(
   label: string,
   address: string,
-): { ens: string; codeHash: Hex } {
-  const ens = toFullEns(label);
-  const normalized = normalizeAddress(address);
-  const gift = requireClaimableGift(code);
+): string {
+  const normalizedLabel = normalizeEnsLabel(label);
+  if (!isValidEnsLabel(normalizedLabel)) {
+    throw new Error("Username can’t contain dots or special characters.");
+  }
 
-  if (!isEnsAvailable(label, normalized)) {
+  const ens = toFullEns(normalizedLabel);
+  const normalized = normalizeAddress(address);
+
+  const existing = getEnsByAddress(normalized);
+  if (existing) return existing;
+
+  if (!isEnsAvailable(normalizedLabel, normalized)) {
     throw new Error(`${ens} is already taken.`);
   }
 
   const map = getEnsByAddressMap();
   map[normalized] = ens;
   writeJson(ENS_BY_ADDRESS_KEY, map);
+  return ens;
+}
 
+/** Claim a gift to the wallet. Username is not part of the claim. */
+export function claimGiftOnChain(
+  code: string,
+  address: string,
+): { codeHash: Hex } {
+  const normalized = normalizeAddress(address);
+  const gift = requireClaimableGift(code);
   markGiftClaimed(gift);
   creditGiftToAddress(normalized, gift);
-
-  return { ens, codeHash: gift.codeHash };
-}
-
-export function savePendingClaim(claim: PendingClaim) {
-  writeJson(PENDING_CLAIM_KEY, claim);
-}
-
-export function getPendingClaim(): PendingClaim | null {
-  return readJson<PendingClaim | null>(PENDING_CLAIM_KEY, null);
-}
-
-export function clearPendingClaim() {
-  if (!canUseStorage()) return;
-  window.localStorage.removeItem(PENDING_CLAIM_KEY);
+  return { codeHash: gift.codeHash };
 }

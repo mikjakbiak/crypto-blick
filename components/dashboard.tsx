@@ -12,6 +12,7 @@ import { useAddFunds, usePrivy, useWallets } from "@privy-io/react-auth";
 import { formatUnits, isAddress } from "viem";
 import AccountMenu from "@/components/account-menu";
 import SendGiftForm, { type SendMode } from "@/components/send-gift-form";
+import SentGiftsList from "@/components/sent-gifts-list";
 import {
   addContact,
   getContacts,
@@ -21,6 +22,10 @@ import {
   subscribeToContacts,
 } from "@/lib/contacts";
 import { getBalancesByAddress, getEnsByAddress } from "@/lib/mock-chain";
+import UsernameForm from "@/components/username-form";
+import useResumeGiftClaim from "@/components/use-resume-gift-claim";
+import { homePath } from "@/lib/paths";
+import { resolveClaimCode } from "@/lib/claim-code";
 import { DASHBOARD_TOKENS, formatTokenAmount, formatUsd } from "@/lib/tokens";
 
 const ETHEREUM_USDC_ADDRESS = "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
@@ -79,6 +84,7 @@ export default function Dashboard() {
   const sendMode = parseSendMode(searchParams.get("mode"), Boolean(recipient));
 
   const [balancesVersion, setBalancesVersion] = useState(0);
+  const [usernameVersion, setUsernameVersion] = useState(0);
   const [funding, setFunding] = useState(false);
   const [fundingError, setFundingError] = useState<string | null>(null);
   const [contactName, setContactName] = useState("");
@@ -90,18 +96,23 @@ export default function Dashboard() {
     getServerContactsSnapshot,
   );
 
+  const pendingCode = resolveClaimCode(searchParams.get("code"));
+
   useEffect(() => {
-    if (!ready) return;
-    if (!authenticated) {
-      router.replace("/");
-    }
-  }, [ready, authenticated, router]);
+    if (!ready || authenticated) return;
+    router.replace(homePath(pendingCode || null));
+  }, [ready, authenticated, router, pendingCode]);
 
   const walletAddress = wallet?.address;
+  void usernameVersion;
   const contacts = walletAddress
     ? getContacts(walletAddress, contactsSnapshot)
     : [];
   const ensName = walletAddress ? getEnsByAddress(walletAddress) : null;
+  const claim = useResumeGiftClaim(
+    authenticated ? walletAddress : undefined,
+    ensName,
+  );
   const balances = walletAddress ? getBalancesByAddress(walletAddress) : null;
   const tokens = useMemo<TokenRow[]>(() => {
     void balancesVersion;
@@ -143,6 +154,9 @@ export default function Dashboard() {
       if (nextMode === "transfer" && nextRecipient) {
         params.set("recipient", nextRecipient);
       }
+    }
+    if (pendingCode && claim.status !== "claimed") {
+      params.set("code", pendingCode);
     }
 
     const query = params.toString();
@@ -234,6 +248,34 @@ export default function Dashboard() {
     );
   }
 
+  if (walletsReady && walletAddress && !ensName) {
+    return (
+      <div className="relative flex flex-1 flex-col">
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-teal-800 dark:text-teal-300">
+            Create your account
+          </p>
+          <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-teal-950 dark:text-teal-50">
+            Pick a free username
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+            {pendingCode
+              ? "Choose your username first. After that we claim the gift into this account."
+              : "Every account gets a free username before the app opens."}
+          </p>
+          <div className="mt-6 rounded-3xl border border-teal-900/10 bg-white/90 p-5 shadow-[0_24px_60px_-28px_rgba(15,118,110,0.45)] sm:p-7 dark:border-teal-400/15 dark:bg-zinc-950/85">
+            <UsernameForm
+              address={walletAddress}
+              onRegistered={() => {
+                setUsernameVersion((value) => value + 1);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "assets", label: "Assets" },
     { id: "send", label: "Send" },
@@ -260,6 +302,16 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-6">
+        {claim.status === "claiming" ? (
+          <p className="rounded-2xl border border-teal-900/10 bg-teal-50 px-4 py-3 text-sm text-teal-900 dark:border-teal-400/20 dark:bg-teal-950/40 dark:text-teal-100">
+            Claiming your gift to this wallet…
+          </p>
+        ) : null}
+        {claim.status === "error" && claim.error ? (
+          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+            {claim.error}
+          </p>
+        ) : null}
         <div
           className="grid grid-cols-3 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
           role="tablist"
@@ -345,6 +397,7 @@ export default function Dashboard() {
             </section>
           </>
         ) : tab === "send" ? (
+          <>
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
             <div
               className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
@@ -400,6 +453,10 @@ export default function Dashboard() {
               />
             </div>
           </section>
+          {walletAddress ? (
+            <SentGiftsList walletAddress={walletAddress} />
+          ) : null}
+          </>
         ) : (
           <>
             <form

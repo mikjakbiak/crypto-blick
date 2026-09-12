@@ -118,8 +118,13 @@ export default function SendGiftForm({
         return;
       }
 
+      if (!wallet?.address) {
+        setSendError("Your wallet is still loading.");
+        return;
+      }
+
       const code = generateGiftCode();
-      const gift = saveGiftOnChain(code, amount);
+      const gift = saveGiftOnChain(code, amount, wallet.address);
       const link = `${window.location.origin}/?code=${encodeURIComponent(code)}`;
 
       setSendResult({
