@@ -36,6 +36,22 @@ yarn-error.log*
 # vercel
 .vercel
 
+# foundry
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+
+# next generated agent files
+/AGENTS.md
+/CLAUDE.md
+
+# zk intermediates
+artifacts/*.ptau
+artifacts/circuit
+artifacts/pot*
+.bin
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
