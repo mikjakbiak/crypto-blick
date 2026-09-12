@@ -20,14 +20,15 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: "Crypto Blick",
-  description: "Claim your gift and open a wallet with Crypto Blick.",
+  description:
+    "Social crypto wallet. Send by username, gift link, or phone. Email signup, free ENS name, onramp and card in one calm app.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full scroll-smooth antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
