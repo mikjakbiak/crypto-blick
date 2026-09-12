@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { createPublicClient, formatEther, http, parseAbiItem } from "viem";
+import { createPublicClient, formatEther, http } from "viem";
 import { giftClaimerAbi } from "@/lib/chain/abi";
 import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
 import { homePath } from "@/lib/paths";
@@ -113,7 +113,6 @@ export default function SentGiftsList({ walletAddress }: SentGiftsListProps) {
   );
   const local = sentGiftCodesFor(walletAddress);
   const [chainGifts, setChainGifts] = useState<ChainGift[]>([]);
-  void snapshot;
 
   useEffect(() => {
     const client = createPublicClient({
@@ -122,31 +121,28 @@ export default function SentGiftsList({ walletAddress }: SentGiftsListProps) {
     });
     let cancelled = false;
     async function load() {
-      const logs = await client.getLogs({
-        address: publicContracts().giftClaimer,
-        event: parseAbiItem(
-          "event GiftCreated(uint256 indexed codeHash, address indexed sender, uint256 amount)",
-        ),
-        args: { sender: walletAddress as `0x${string}` },
-        fromBlock: 0n,
-      });
-      const gifts = await Promise.all(
-        logs.map(async (log) => {
-          const codeHash = log.args.codeHash!;
-          const onChain = await client.readContract({
-            address: publicContracts().giftClaimer,
-            abi: giftClaimerAbi,
-            functionName: "gifts",
-            args: [codeHash],
-          });
-          return {
-            codeHash: `0x${codeHash.toString(16).padStart(64, "0")}` as `0x${string}`,
-            amountWei: onChain[1],
-            sender: onChain[0],
-            claimed: onChain[2],
-          };
-        }),
-      );
+      const stored = sentGiftCodesFor(walletAddress);
+      const gifts = (
+        await Promise.all(
+          stored.map(async (item) => {
+            const onChain = await client.readContract({
+              address: publicContracts().giftClaimer,
+              abi: giftClaimerAbi,
+              functionName: "gifts",
+              args: [BigInt(item.codeHash)],
+            });
+            if (onChain[0] === "0x0000000000000000000000000000000000000000") {
+              return null;
+            }
+            return {
+              codeHash: item.codeHash as `0x${string}`,
+              amountWei: onChain[1],
+              sender: onChain[0],
+              claimed: onChain[2],
+            };
+          }),
+        )
+      ).filter((row): row is ChainGift => row !== null);
       if (!cancelled) setChainGifts(gifts);
     }
     void load();
