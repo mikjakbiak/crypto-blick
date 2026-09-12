@@ -2,9 +2,9 @@
 
 import { useState, type FormEvent } from "react";
 import { useWallets } from "@privy-io/react-auth";
-import { isAddress, parseEther } from "viem";
+import { createPublicClient, http, isAddress, parseEther } from "viem";
 import { giftClaimerAbi } from "@/lib/chain/abi";
-import { publicContracts } from "@/lib/chain/config";
+import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
 import { walletClientFromPrivy } from "@/lib/chain/wallet";
 import { generateGiftCode } from "@/lib/zk/code";
 import { hashCode } from "@/lib/zk/poseidon";
@@ -132,13 +132,21 @@ export default function SendGiftForm({
 
       const code = generateGiftCode();
       const codeHash = hashCode(code);
-      await client.writeContract({
+      const hash = await client.writeContract({
         address: publicContracts().giftClaimer,
         abi: giftClaimerAbi,
         functionName: "createGift",
         args: [codeHash],
         value: parseEther(amount),
       });
+      const publicClient = createPublicClient({
+        chain: APP_CHAIN,
+        transport: http("/api/rpc"),
+      });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status !== "success") {
+        throw new Error("Gift lock reverted on Sepolia.");
+      }
 
       rememberSentGiftCode(wallet.address, {
         codeHash: toHex(codeHash),

@@ -109,6 +109,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!walletAddress) return;
+    console.log("privy address", walletAddress);
+  }, [walletAddress]);
+
+  useEffect(() => {
+    if (!walletAddress) return;
     let cancelled = false;
     async function load() {
       const [balanceRes, ensRes] = await Promise.all([
