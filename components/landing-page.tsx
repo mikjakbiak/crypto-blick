@@ -14,22 +14,22 @@ const STEPS = [
   {
     n: "01",
     title: "Get a link",
-    body: "Someone sends you a gift link, a username, or (soon) a phone number. You do not need to know what a wallet address is.",
+    body: "Someone sends you a gift link, or later you get paid by username. You do not need a wallet address.",
   },
   {
     n: "02",
-    title: "Sign in with email",
-    body: "Sign in with email. We set up a wallet you control. No seed phrase to write down to get started.",
+    title: "Log in",
+    body: "Email or Google. You get a wallet you control. No seed phrase.",
   },
   {
     n: "03",
-    title: "Pick a free username",
-    body: "You pick a free username. Friends send to john, not a long address.",
+    title: "Pick a free ENS name",
+    body: "You pick a username. Friends send to vitalik, which is vitalik.gifty.eth.",
   },
   {
     n: "04",
-    title: "Claim, add cash, spend",
-    body: "The gift lands in your account. Add more cash, spend with a card, send the next gift by name.",
+    title: "Claim, add cash, send the next one",
+    body: "The gift lands. Add USDC, swap, send the next gift by name. That is how the next person gets in.",
   },
 ] as const;
 
@@ -103,16 +103,15 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
         <section className="mx-auto grid w-full max-w-6xl gap-12 px-4 pb-20 pt-12 sm:px-6 sm:pt-16 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-16 lg:pb-28 lg:pt-20">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-teal-800 dark:text-teal-300">
-              A simpler crypto wallet
+              Gift link, then an account
             </p>
             <h1 className="mt-4 text-balance font-display text-4xl font-semibold leading-[1.12] tracking-tight text-teal-950 sm:text-5xl lg:text-[3.35rem] dark:text-teal-50">
-              Send money the way you already send messages.
+              Login, a real ENS name, money in, money out, and a way to pull the next person in.
             </h1>
             <p className="mt-5 max-w-xl text-pretty text-base leading-7 text-zinc-600 sm:text-lg sm:leading-8 dark:text-zinc-400">
-              Gifty is for people who should not have to learn addresses
-              to get paid. Share a gift link. Sign in with email. Choose a free
-              username. Funds move on Base — the app feels like a calm
-              fintech.
+              Without teaching anyone a seed phrase. Share a gift link. They
+              sign in with Privy, pick a free name on gifty.eth, and claim the
+              ETH. Next time you send to the name, not a hex address.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <LandingAuthButtons variant="hero" />
@@ -128,14 +127,14 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
           <div id="claim">
             <div className="rounded-[1.75rem] border border-teal-950/10 bg-white/90 p-5 shadow-[0_28px_70px_-32px_rgba(15,118,110,0.5)] backdrop-blur-sm sm:p-7 dark:border-teal-400/15 dark:bg-zinc-950/85 dark:shadow-[0_28px_70px_-32px_rgba(0,0,0,0.8)]">
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-teal-700 dark:text-teal-300">
-                Claim in minutes
+                Claim a gift
               </p>
               <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                 Have a gift? Open it here.
               </h2>
               <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
                 Paste the code or the gift link. Sign in if you are new. You
-                choose your username next, during signup, not on this form.
+                pick your username during signup, not on this form.
               </p>
               <div className="mt-5">
                 <GiftCard initialCode={initialCode} />
@@ -147,14 +146,14 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
         <section id="how" className="relative mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-teal-800 dark:text-teal-300">
-              Simple on purpose
+              How it works
             </p>
             <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-teal-950 sm:text-4xl dark:text-teal-50">
-              Four steps. Then you are in.
+              Login, a name, money in and out, then the next gift.
             </h2>
             <p className="mt-4 text-pretty text-base leading-7 text-zinc-600 dark:text-zinc-400">
-              Built for someone new to crypto: sign in first, pick a username,
-              then add and spend money without leaving the app.
+              Sign in, pick a free ENS name, claim ETH, then pull the next
+              person in with a link. No seed phrase on this path.
             </p>
           </div>
           <ol className="mt-12 grid gap-5 md:grid-cols-2">
@@ -187,9 +186,9 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
                 Send money as a link anyone can open.
               </h2>
               <p className="mt-4 text-pretty text-base leading-7 text-zinc-600 dark:text-zinc-400">
-                You pick an amount and get a link. Send it in a chat, like any
-                other message. Your friend opens it, signs in, and the money is
-                theirs. Next time you can send straight to their username.
+                You pick an amount and get a link. Send it in a chat. Your
+                friend opens it, signs in, picks a name, and the ETH is theirs.
+                Next time you send to that name.
               </p>
             </div>
             <div className="flex flex-col justify-center gap-4">
@@ -253,15 +252,15 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
           <div className="mx-auto grid w-full max-w-6xl items-start gap-12 px-4 sm:px-6 lg:grid-cols-2">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-teal-800 dark:text-teal-300">
-                Money in one place
+                Money in, money out
               </p>
               <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-teal-950 sm:text-4xl dark:text-teal-50">
-                Add cash. Spend it. Same place as your balance.
+                Add cash. Spend. Same screen as your balance.
               </h2>
               <p className="mt-4 text-pretty text-base leading-7 text-zinc-600 dark:text-zinc-400">
-                After the first gift, you are not stuck. Add money the way you
-                already pay for things. A spending card sits next to your
-                balance, so what you receive is easy to use.
+                After the first gift, add USDC from a bank or card with Privy.
+                Swap in the app. A spend card sits next to the balance; live
+                issuing is not on yet.
               </p>
             </div>
             <div className="grid gap-4">
@@ -270,7 +269,7 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
                   Onramp
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                  Add money from your bank or card without leaving the app.
+                  Add USDC from a bank or card, in the app.
                 </p>
               </article>
               <article className="rounded-3xl border border-teal-950/8 bg-white/80 p-6 dark:border-white/8 dark:bg-white/4">
@@ -278,8 +277,8 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
                   Spending card
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                  A card lives next to your balance, so you can spend what you
-                  received.
+                  Card UI is in the dashboard. Full issuing needs KYB we do not
+                  have yet.
                 </p>
               </article>
             </div>
@@ -290,10 +289,10 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
           <div className="flex flex-col items-start justify-between gap-8 rounded-[2rem] bg-teal-950 px-6 py-10 text-teal-50 sm:flex-row sm:items-center sm:px-12 sm:py-14">
             <div className="max-w-lg">
               <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-                Open an account. Or open a gift.
+                Create an account, or claim a gift.
               </h2>
               <p className="mt-3 text-sm leading-7 text-teal-100/80 sm:text-base">
-                Sign in with email, pick a username, and you are ready.
+                Login, a real ENS name, money in, money out. No seed phrase.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -311,8 +310,8 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
 
       <footer className="relative border-t border-teal-950/8 py-8 dark:border-white/8">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p>Gifty — send by name, link, or phone.</p>
-          <p>Value moves on Ethereum. You never have to say that first.</p>
+          <p>Gifty. Send by username or gift link.</p>
+          <p>ETH on Base. Names on gifty.eth.</p>
         </div>
       </footer>
     </div>
