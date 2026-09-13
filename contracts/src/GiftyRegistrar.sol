@@ -23,7 +23,7 @@ interface IPermissionedResolver {
 }
 
 /// @notice Zero-price ENSv2 subname registrar. One username per wallet.
-contract FreeUsernameRegistrar is Operated {
+contract GiftyRegistrar is Operated {
     uint256 public constant REGISTRATION_ROLE_BITMAP =
         (1 << 20) | ((1 << 20) << 128) | (1 << 24) | ((1 << 24) << 128) | ((1 << 28) << 128);
 

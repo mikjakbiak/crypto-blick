@@ -3,12 +3,12 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {GiftClaimer} from "../src/GiftClaimer.sol";
+import {GiftyClaimer} from "../src/GiftyClaimer.sol";
 import {Operated} from "../src/Operated.sol";
-import {PlonkVerifier} from "../src/PlonkVerifier.sol";
+import {GiftyVerifier} from "../src/GiftyVerifier.sol";
 
-contract GiftClaimTest is Test {
-    GiftClaimer internal claimer;
+contract GiftyClaimTest is Test {
+    GiftyClaimer internal claimer;
 
     address internal constant ALICE = address(uint160(0xA1));
     address internal constant BOB = address(uint160(0xB2));
@@ -17,7 +17,7 @@ contract GiftClaimTest is Test {
     uint256[2] internal aliceSignals;
 
     function setUp() public {
-        claimer = new GiftClaimer(address(new PlonkVerifier()));
+        claimer = new GiftyClaimer(address(new GiftyVerifier()));
         _loadAlice();
         claimer.createGift{value: 1 ether}(aliceSignals[0]);
     }
@@ -35,13 +35,13 @@ contract GiftClaimTest is Test {
         uint256[2] memory swapped = aliceSignals;
         swapped[1] = uint256(uint160(BOB));
         vm.prank(BOB);
-        vm.expectRevert(GiftClaimer.InvalidProof.selector);
+        vm.expectRevert(GiftyClaimer.InvalidProof.selector);
         claimer.claim(aliceProof, swapped);
     }
 
     function test_msgSenderMustMatchProvenClaimant() public {
         vm.prank(BOB);
-        vm.expectRevert(GiftClaimer.ClaimantMismatch.selector);
+        vm.expectRevert(GiftyClaimer.ClaimantMismatch.selector);
         claimer.claim(aliceProof, aliceSignals);
     }
 
@@ -49,7 +49,7 @@ contract GiftClaimTest is Test {
         vm.prank(ALICE);
         claimer.claim(aliceProof, aliceSignals);
         vm.prank(ALICE);
-        vm.expectRevert(GiftClaimer.AlreadyClaimed.selector);
+        vm.expectRevert(GiftyClaimer.AlreadyClaimed.selector);
         claimer.claim(aliceProof, aliceSignals);
     }
 
@@ -61,7 +61,7 @@ contract GiftClaimTest is Test {
     }
 
     function test_createGiftBelowMinReverts() public {
-        vm.expectRevert(GiftClaimer.GiftTooSmall.selector);
+        vm.expectRevert(GiftyClaimer.GiftTooSmall.selector);
         claimer.createGift{value: 0.0009 ether}(uint256(keccak256("small")));
     }
 
@@ -124,7 +124,7 @@ contract GiftClaimTest is Test {
     function test_setOperatorFeeCapped() public {
         claimer.setOperatorFee(0.0001 ether);
         assertEq(claimer.operatorFee(), 0.0001 ether);
-        vm.expectRevert(GiftClaimer.FeeTooHigh.selector);
+        vm.expectRevert(GiftyClaimer.FeeTooHigh.selector);
         claimer.setOperatorFee(0.00076 ether);
     }
 

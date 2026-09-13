@@ -1,15 +1,9 @@
 {
   "chain": "sepolia",
   "deployer": "0xB00Dd059ce3c1474deB6F44fa2f6457Bcb0A3d26",
-  "verifier": "0x71ae628a2337daf6221c02cd553e56923f481ee8",
-  "giftClaimer": "0x90c9b770333b5040fe5d2963814d21293bd548cb",
-  "userRegistry": "0x85CFF10fb870eBaBC4519bAB1fAcC6963C578AA2",
-  "resolver": "0x8E265B82115591C502B3B193d6FE8244532771C5",
-  "usernameRegistrar": "0x3dde9162a331b790679237d3207c611a67cf3f7f",
-  "previousUsernameRegistrars": [
-    "0x908d215b7a61d9a0f1fd9dc44a5bd3589802d1a0",
-    "0x325160f36aad4d0e7821b971230eaac9a42265b7"
-  ],
-  "ensParent": "gift.eth",
+  "userRegistry": "0x3c544D431044B0FbE4a87a065CBC0843b3cCe114",
+  "resolver": "0x3e734BA978162574fE3be4525D8874897df88BdB",
+  "usernameRegistrar": "0xd0fc0b90d389a6bbd9164252ff7dcb9e550030f5",
+  "ensParent": "gifty.eth",
   "ensParentRegistered": true
 }

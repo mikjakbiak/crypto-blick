@@ -4,17 +4,17 @@ pragma solidity ^0.8.24;
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Operated} from "./Operated.sol";
 
-interface IPlonkVerifier {
+interface IGiftyVerifier {
     function verifyProof(uint256[24] calldata _proof, uint256[2] calldata _pubSignals) external view returns (bool);
 }
 
 /// @notice Gift claim: Poseidon(code) commitment, snarkjs PLONK proof bound to claimant.
 /// @dev Creating a gift is always paid by msg.sender. Operator only sponsors claims.
-contract GiftClaimer is Operated, ReentrancyGuard {
+contract GiftyClaimer is Operated, ReentrancyGuard {
     uint256 public constant MIN_GIFT = 0.001 ether;
     uint256 public constant MAX_OPERATOR_FEE = 0.00075 ether;
 
-    IPlonkVerifier public immutable verifier;
+    IGiftyVerifier public immutable verifier;
 
     uint256 public operatorFee;
     uint256 public ownerFunds;
@@ -27,8 +27,8 @@ contract GiftClaimer is Operated, ReentrancyGuard {
 
     mapping(uint256 codeHash => Gift) public gifts;
 
-    event GiftCreated(uint256 indexed codeHash, address indexed sender, uint256 amount);
-    event GiftClaimed(uint256 indexed codeHash, address indexed claimant, uint256 paid, uint256 fee);
+    event GiftyCreated(uint256 indexed codeHash, address indexed sender, uint256 amount);
+    event GiftyClaimed(uint256 indexed codeHash, address indexed claimant, uint256 paid, uint256 fee);
     event OperatorFeeSet(uint256 fee);
     event OwnerFundsWithdrawn(address indexed to, uint256 amount);
 
@@ -44,7 +44,7 @@ contract GiftClaimer is Operated, ReentrancyGuard {
     error NothingToWithdraw();
 
     constructor(address verifier_) {
-        verifier = IPlonkVerifier(verifier_);
+        verifier = IGiftyVerifier(verifier_);
         operatorFee = 0.0005 ether;
     }
 
@@ -70,7 +70,7 @@ contract GiftClaimer is Operated, ReentrancyGuard {
         if (gift.sender != address(0)) revert GiftExists();
         gift.sender = msg.sender;
         gift.amount = uint128(msg.value);
-        emit GiftCreated(codeHash, msg.sender, msg.value);
+        emit GiftyCreated(codeHash, msg.sender, msg.value);
     }
 
     function claim(uint256[24] calldata proof, uint256[2] calldata publicSignals) external nonReentrant {
@@ -104,6 +104,6 @@ contract GiftClaimer is Operated, ReentrancyGuard {
 
         (bool ok,) = payable(claimant).call{value: paid}("");
         if (!ok) revert TransferFailed();
-        emit GiftClaimed(codeHash, claimant, paid, fee);
+        emit GiftyClaimed(codeHash, claimant, paid, fee);
     }
 }

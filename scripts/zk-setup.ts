@@ -16,7 +16,7 @@ const CIRCOM_RELEASE = "v2.2.3";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ARTIFACTS = path.join(ROOT, "artifacts");
-const CIRCUIT = path.join(ROOT, "circuit", "gift_claim.circom");
+const CIRCUIT = path.join(ROOT, "circuit", "gifty_claim.circom");
 const SNARKJS_CLI = path.join(ROOT, "node_modules", "snarkjs", "build", "cli.cjs");
 const PTAU_POWER = 10;
 const ALICE = "0x00000000000000000000000000000000000000a1";
@@ -140,7 +140,7 @@ async function generatePtau(destination: string) {
     "contribute",
     ptau0,
     ptau1,
-    "-n=crypto-blick",
+    "-n=gifty",
     `-e=${entropy}`,
   ]);
   await snarkjs(["powersoftau", "prepare", "phase2", ptau1, destination]);
@@ -148,7 +148,7 @@ async function generatePtau(destination: string) {
 
 async function proveCli(wasm: string, zkey: string, code: string, claimant: string) {
   const input = buildCircuitInput(code, claimant);
-  const dir = await mkdtemp(path.join(tmpdir(), "blick-prove-"));
+  const dir = await mkdtemp(path.join(tmpdir(), "gifty-prove-"));
   const inputPath = path.join(dir, "input.json");
   const proofPath = path.join(dir, "proof.json");
   const publicPath = path.join(dir, "public.json");
@@ -224,28 +224,28 @@ async function main() {
     buildDir,
   ]);
 
-  const r1csPath = path.join(buildDir, "gift_claim.r1cs");
-  const wasmPath = path.join(buildDir, "gift_claim_js", "gift_claim.wasm");
+  const r1csPath = path.join(buildDir, "gifty_claim.r1cs");
+  const wasmPath = path.join(buildDir, "gifty_claim_js", "gifty_claim.wasm");
   const ptauPath = path.join(ARTIFACTS, `pot${PTAU_POWER}_final.ptau`);
   await generatePtau(ptauPath);
 
-  const zkey = path.join(ARTIFACTS, "gift_claim.zkey");
+  const zkey = path.join(ARTIFACTS, "gifty_claim.zkey");
   const vkeyPath = path.join(ARTIFACTS, "verification_key.json");
-  const verifier = path.join(ROOT, "contracts", "src", "PlonkVerifier.sol");
+  const verifier = path.join(ROOT, "contracts", "src", "GiftyVerifier.sol");
 
   await snarkjs(["plonk", "setup", r1csPath, ptauPath, zkey]);
   await snarkjs(["zkey", "export", "verificationkey", zkey, vkeyPath]);
   await snarkjs(["zkey", "export", "solidityverifier", zkey, verifier]);
 
   let source = await readFile(verifier, "utf8");
-  if (!source.includes("contract PlonkVerifier")) {
-    source = source.replace(/contract \w+/, "contract PlonkVerifier");
+  if (!source.includes("contract GiftyVerifier")) {
+    source = source.replace(/contract \w+/, "contract GiftyVerifier");
     await writeFile(verifier, source);
   }
 
-  await copyFile(wasmPath, path.join(ARTIFACTS, "gift_claim.wasm"));
-  await copyFile(wasmPath, path.join(ROOT, "public", "zk", "gift_claim.wasm"));
-  await copyFile(zkey, path.join(ROOT, "public", "zk", "gift_claim.zkey"));
+  await copyFile(wasmPath, path.join(ARTIFACTS, "gifty_claim.wasm"));
+  await copyFile(wasmPath, path.join(ROOT, "public", "zk", "gifty_claim.wasm"));
+  await copyFile(zkey, path.join(ROOT, "public", "zk", "gifty_claim.zkey"));
   await copyFile(vkeyPath, path.join(ROOT, "public", "zk", "verification_key.json"));
 
   const alice = await writeFixture("alice", wasmPath, zkey, DEMO_CODE, ALICE);

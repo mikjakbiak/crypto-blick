@@ -1,5 +1,5 @@
 {
-  "name": "crypto-blick",
+  "name": "gifty",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "zk:setup": "bun scripts/zk-setup.ts",
-    "deploy:sepolia": "forge build --root contracts && bun scripts/deploy-sepolia.ts",
+    "deploy:ens-sepolia": "forge build --root contracts && bun scripts/deploy-sepolia.ts",
+    "deploy:base": "forge build --root contracts && bun scripts/deploy-base.ts",
+    "verify:sepolia": "bun scripts/verify-sepolia.ts",
+    "verify:base": "bun scripts/verify-base.ts",
     "test:contracts": "forge test --root contracts -vv"
   },
   "dependencies": {
