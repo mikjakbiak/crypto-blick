@@ -26,6 +26,10 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 .landing {
   background: linear-gradient(180deg, #f6f8f7 0%, #eef3f1 42%, #f7f8f6 100%);
 }

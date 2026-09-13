@@ -63,17 +63,6 @@ function parseSendMode(value: string | null, hasRecipient: boolean): SendMode {
   return hasRecipient ? "transfer" : "gift";
 }
 
-function tabTitle(tab: Tab) {
-  switch (tab) {
-    case "assets":
-      return "Portfolio";
-    case "send":
-      return "Send";
-    case "contacts":
-      return "Contacts";
-  }
-}
-
 export default function Dashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -312,8 +301,11 @@ export default function Dashboard() {
 
   if (walletsReady && walletAddress && ensReady && !ensName) {
     return (
-      <div className="relative flex flex-1 flex-col">
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
+      <div className="landing relative flex flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex items-center justify-end px-4 py-4">
+          <AccountMenu name={displayName} ethBalance={ethBalance} />
+        </header>
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 pb-10">
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-teal-800 dark:text-teal-300">
             Create your account
           </p>
@@ -345,20 +337,9 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-            Dashboard
-          </p>
-          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            {tabTitle(tab)}
-          </h1>
-        </div>
-        <AccountMenu
-          name={displayName}
-          ethBalance={ethBalance}
-        />
+    <div className="landing flex flex-1 flex-col">
+      <header className="sticky top-0 z-30 flex items-center justify-end px-4 py-4">
+        <AccountMenu name={displayName} ethBalance={ethBalance} />
       </header>
 
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-6">
@@ -420,7 +401,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleOnRamp}
                 disabled={!walletsReady || !wallet || funding}
-                className="mt-5 min-h-12 w-full rounded-xl bg-zinc-900 px-4 text-base font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+                className="mt-5 min-h-12 w-full rounded-xl bg-teal-800 px-4 text-base font-medium text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-500 dark:text-zinc-950 dark:hover:bg-teal-400"
               >
                 {funding ? "Opening on-ramp…" : "Add funds"}
               </button>
@@ -559,7 +540,7 @@ export default function Dashboard() {
                   value={contactName}
                   onChange={(event) => setContactName(event.target.value)}
                   placeholder="Name"
-                  className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-zinc-900 outline-none ring-zinc-400 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+                  className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-zinc-900 outline-none ring-teal-500/40 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                 />
                 <input
                   type="text"
@@ -567,7 +548,7 @@ export default function Dashboard() {
                   onChange={(event) => setContactAddress(event.target.value)}
                   placeholder="Address or ENS"
                   spellCheck={false}
-                  className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 font-mono text-sm text-zinc-900 outline-none ring-zinc-400 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+                  className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 font-mono text-sm text-zinc-900 outline-none ring-teal-500/40 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                 />
                 {contactError ? (
                   <p className="text-sm text-red-600 dark:text-red-400">
@@ -576,7 +557,7 @@ export default function Dashboard() {
                 ) : null}
                 <button
                   type="submit"
-                  className="min-h-12 w-full rounded-xl bg-zinc-900 px-4 text-base font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+                  className="min-h-12 w-full rounded-xl bg-teal-800 px-4 text-base font-medium text-white transition-colors hover:bg-teal-700 dark:bg-teal-500 dark:text-zinc-950 dark:hover:bg-teal-400"
                 >
                   Save contact
                 </button>
