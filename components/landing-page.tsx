@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties } from "react";
+import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
 import GiftCard from "@/components/gift-card";
+import { dashboardPath } from "@/lib/paths";
 
 type LandingPageProps = {
   initialCode?: string;
@@ -32,7 +34,6 @@ const STEPS = [
 ] as const;
 
 export default function LandingPage({ initialCode }: LandingPageProps) {
-  const { login } = usePrivy();
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -109,20 +110,7 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => login({ disableSignup: true })}
-              className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-teal-950/5 dark:text-zinc-200 dark:hover:bg-white/8"
-            >
-              Log in
-            </button>
-            <button
-              type="button"
-              onClick={() => login()}
-              className="rounded-full bg-teal-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-800 dark:bg-teal-400 dark:text-teal-950 dark:hover:bg-teal-300"
-            >
-              Create account
-            </button>
+            <LandingAuthButtons variant="header" />
           </div>
         </div>
       </header>
@@ -143,20 +131,7 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
               fintech.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => login()}
-                className="inline-flex min-h-12 items-center rounded-full bg-teal-900 px-6 text-sm font-medium text-white transition-colors hover:bg-teal-800 dark:bg-teal-400 dark:text-teal-950 dark:hover:bg-teal-300"
-              >
-                Create your free account
-              </button>
-              <button
-                type="button"
-                onClick={() => login({ disableSignup: true })}
-                className="inline-flex min-h-12 items-center rounded-full border border-teal-950/12 px-6 text-sm font-medium text-teal-950 transition-colors hover:bg-white/70 dark:border-white/15 dark:text-teal-50 dark:hover:bg-white/5"
-              >
-                Log in
-              </button>
+              <LandingAuthButtons variant="hero" />
               <a
                 href="#claim"
                 className="inline-flex min-h-12 items-center px-2 text-sm font-medium text-teal-800 underline-offset-4 hover:underline dark:text-teal-300"
@@ -415,20 +390,7 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => login()}
-                className="inline-flex min-h-12 items-center rounded-full bg-white px-6 text-sm font-medium text-teal-950 transition-colors hover:bg-teal-50"
-              >
-                Create account
-              </button>
-              <button
-                type="button"
-                onClick={() => login({ disableSignup: true })}
-                className="inline-flex min-h-12 items-center rounded-full border border-white/25 px-6 text-sm font-medium text-white transition-colors hover:bg-white/10"
-              >
-                Log in
-              </button>
+              <LandingAuthButtons variant="footer" />
               <a
                 href="#claim"
                 className="inline-flex min-h-12 items-center px-2 text-sm font-medium text-teal-200 underline-offset-4 hover:underline"
@@ -447,5 +409,86 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
         </div>
       </footer>
     </div>
+  );
+}
+
+const dashboardLinkClass = {
+  header:
+    "rounded-full bg-teal-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-800 dark:bg-teal-400 dark:text-teal-950 dark:hover:bg-teal-300",
+  hero: "inline-flex min-h-12 items-center rounded-full bg-teal-900 px-6 text-sm font-medium text-white transition-colors hover:bg-teal-800 dark:bg-teal-400 dark:text-teal-950 dark:hover:bg-teal-300",
+  footer:
+    "inline-flex min-h-12 items-center rounded-full bg-white px-6 text-sm font-medium text-teal-950 transition-colors hover:bg-teal-50",
+} as const;
+
+function LandingAuthButtons({ variant }: { variant: keyof typeof dashboardLinkClass }) {
+  const { authenticated, login } = usePrivy();
+
+  if (authenticated) {
+    return (
+      <Link href={dashboardPath()} className={dashboardLinkClass[variant]}>
+        Go to dashboard
+      </Link>
+    );
+  }
+
+  if (variant === "header") {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => login({ disableSignup: true })}
+          className="rounded-full px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-teal-950/5 dark:text-zinc-200 dark:hover:bg-white/8"
+        >
+          Log in
+        </button>
+        <button
+          type="button"
+          onClick={() => login()}
+          className="rounded-full bg-teal-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-800 dark:bg-teal-400 dark:text-teal-950 dark:hover:bg-teal-300"
+        >
+          Create account
+        </button>
+      </>
+    );
+  }
+
+  if (variant === "hero") {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => login()}
+          className="inline-flex min-h-12 items-center rounded-full bg-teal-900 px-6 text-sm font-medium text-white transition-colors hover:bg-teal-800 dark:bg-teal-400 dark:text-teal-950 dark:hover:bg-teal-300"
+        >
+          Create your free account
+        </button>
+        <button
+          type="button"
+          onClick={() => login({ disableSignup: true })}
+          className="inline-flex min-h-12 items-center rounded-full border border-teal-950/12 px-6 text-sm font-medium text-teal-950 transition-colors hover:bg-white/70 dark:border-white/15 dark:text-teal-50 dark:hover:bg-white/5"
+        >
+          Log in
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => login()}
+        className="inline-flex min-h-12 items-center rounded-full bg-white px-6 text-sm font-medium text-teal-950 transition-colors hover:bg-teal-50"
+      >
+        Create account
+      </button>
+      <button
+        type="button"
+        onClick={() => login({ disableSignup: true })}
+        className="inline-flex min-h-12 items-center rounded-full border border-white/25 px-6 text-sm font-medium text-white transition-colors hover:bg-white/10"
+      >
+        Log in
+      </button>
+    </>
   );
 }

@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -70,7 +71,7 @@ function tabTitle(tab: Tab) {
 export default function Dashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated, user } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
   const { addFunds } = useAddFunds();
   const wallet =
@@ -104,13 +105,15 @@ export default function Dashboard() {
     getServerContactsSnapshot,
   );
 
-  const pendingCode = resolveClaimCode(searchParams.get("code"));
-  const walletAddress = wallet?.address;
+  const signedIn = Boolean(ready && authenticated && user);
 
-  useEffect(() => {
-    if (!walletAddress) return;
-    console.log("privy address", walletAddress);
-  }, [walletAddress]);
+  const pendingCode = resolveClaimCode(searchParams.get("code"));
+  const walletAddress = signedIn ? wallet?.address : undefined;
+
+  useLayoutEffect(() => {
+    if (!ready || signedIn) return;
+    router.replace(homePath(pendingCode || null));
+  }, [ready, signedIn, router, pendingCode]);
 
   useEffect(() => {
     if (!walletAddress) return;
@@ -141,17 +144,12 @@ export default function Dashboard() {
     };
   }, [walletAddress, balancesVersion, usernameVersion]);
 
-  useEffect(() => {
-    if (!ready || authenticated) return;
-    router.replace(homePath(pendingCode || null));
-  }, [ready, authenticated, router, pendingCode]);
-
   const contacts = walletAddress
     ? getContacts(walletAddress, contactsSnapshot)
     : [];
   const claim = useResumeGiftClaim(
-    authenticated ? walletAddress : undefined,
-    walletAddress ? ensName : null,
+    signedIn ? walletAddress : undefined,
+    signedIn && walletAddress ? ensName : null,
   );
   const tokens = useMemo<TokenRow[]>(() => {
     const source = walletAddress ? balances : null;
@@ -279,7 +277,7 @@ export default function Dashboard() {
     removeContact(wallet.address, id);
   }
 
-  if (!ready || !authenticated) {
+  if (!signedIn) {
     return (
       <div className="flex flex-1 items-center justify-center px-4 py-8 text-sm text-zinc-500">
         Loading…
