@@ -3,9 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { createPublicClient, http } from "viem";
-import { giftClaimerAbi } from "@/lib/chain/abi";
-import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
+import { giftyClaimerAbi } from "@/lib/chain/abi";
+import { browserPublicClient } from "@/lib/chain/clients";
+import { MONEY_CHAIN, MONEY_RPC_PATH, moneyContracts } from "@/lib/chain/config";
 import { dashboardPath, homePath } from "@/lib/paths";
 import { rememberClaimCode } from "@/lib/claim-code";
 import { extractGiftCode } from "@/lib/zk/code";
@@ -40,13 +40,10 @@ export default function GiftCard({ initialCode }: GiftCardProps) {
         return;
       }
 
-      const client = createPublicClient({
-        chain: APP_CHAIN,
-        transport: http("/api/rpc"),
-      });
+      const client = browserPublicClient(MONEY_RPC_PATH, MONEY_CHAIN);
       const gift = await client.readContract({
-        address: publicContracts().giftClaimer,
-        abi: giftClaimerAbi,
+        address: moneyContracts().giftyClaimer,
+        abi: giftyClaimerAbi,
         functionName: "gifts",
         args: [hashCode(code)],
       });
@@ -100,7 +97,7 @@ export default function GiftCard({ initialCode }: GiftCardProps) {
         disabled={claimBusy}
         className={primaryButtonClassName}
       >
-        {claimBusy ? "Checking Sepolia…" : "Claim gift"}
+        {claimBusy ? "Checking Base…" : "Claim gift"}
       </button>
     </form>
   );

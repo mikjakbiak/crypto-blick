@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useWallets } from "@privy-io/react-auth";
-import { createPublicClient, http, parseEventLogs } from "viem";
+import { parseEventLogs } from "viem";
 import { plonk } from "snarkjs";
-import { giftClaimerAbi } from "@/lib/chain/abi";
-import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
+import { giftyClaimerAbi } from "@/lib/chain/abi";
+import { browserPublicClient } from "@/lib/chain/clients";
+import { MONEY_CHAIN, MONEY_RPC_PATH, moneyContracts } from "@/lib/chain/config";
 import { postSponsor, submitUserTxOrSponsor } from "@/lib/chain/submit";
 import { walletClientFromPrivy } from "@/lib/chain/wallet";
 import { forgetClaimCode, resolveClaimCode } from "@/lib/claim-code";
@@ -52,13 +53,10 @@ export default function useResumeGiftClaim(
       setStatus("claiming");
       setError(null);
       try {
-        const publicClient = createPublicClient({
-          chain: APP_CHAIN,
-          transport: http("/api/rpc"),
-        });
+        const publicClient = browserPublicClient(MONEY_RPC_PATH, MONEY_CHAIN);
         const existing = await publicClient.readContract({
-          address: publicContracts().giftClaimer,
-          abi: giftClaimerAbi,
+          address: moneyContracts().giftyClaimer,
+          abi: giftyClaimerAbi,
           functionName: "gifts",
           args: [hashCode(claimCode)],
         });
@@ -77,7 +75,7 @@ export default function useResumeGiftClaim(
 
         const proved = await proveClaim(
           plonk,
-          { wasm: "/zk/gift_claim.wasm", zkey: "/zk/gift_claim.zkey" },
+          { wasm: "/zk/gifty_claim.wasm", zkey: "/zk/gifty_claim.zkey" },
           claimCode,
           claimant,
         );
@@ -88,11 +86,13 @@ export default function useResumeGiftClaim(
         ] as const;
         const { hash } = await submitUserTxOrSponsor({
           account: claimant as `0x${string}`,
+          chain: MONEY_CHAIN,
+          rpcPath: MONEY_RPC_PATH,
           sendSelf: async () => {
-            const client = await walletClientFromPrivy(claimantWallet);
+            const client = await walletClientFromPrivy(claimantWallet, MONEY_CHAIN);
             return client.writeContract({
-              address: publicContracts().giftClaimer,
-              abi: giftClaimerAbi,
+              address: moneyContracts().giftyClaimer,
+              abi: giftyClaimerAbi,
               functionName: "claim",
               args: [proof, publicSignals],
             });
@@ -106,8 +106,8 @@ export default function useResumeGiftClaim(
 
         const receipt = await publicClient.getTransactionReceipt({ hash });
         const claimedLogs = parseEventLogs({
-          abi: giftClaimerAbi,
-          eventName: "GiftClaimed",
+          abi: giftyClaimerAbi,
+          eventName: "GiftyClaimed",
           logs: receipt.logs,
         });
         const paid = claimedLogs[0]?.args.paid ?? existing[1];

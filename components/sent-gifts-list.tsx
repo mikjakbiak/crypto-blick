@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { createPublicClient, formatEther, http } from "viem";
-import { giftClaimerAbi } from "@/lib/chain/abi";
-import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
+import { formatEther } from "viem";
+import { giftyClaimerAbi } from "@/lib/chain/abi";
+import { browserPublicClient } from "@/lib/chain/clients";
+import { MONEY_CHAIN, MONEY_RPC_PATH, moneyContracts } from "@/lib/chain/config";
 import { homePath } from "@/lib/paths";
 import {
   sentGiftCodesFor,
@@ -115,10 +116,7 @@ export default function SentGiftsList({ walletAddress }: SentGiftsListProps) {
   const [chainGifts, setChainGifts] = useState<ChainGift[]>([]);
 
   useEffect(() => {
-    const client = createPublicClient({
-      chain: APP_CHAIN,
-      transport: http("/api/rpc"),
-    });
+    const client = browserPublicClient(MONEY_RPC_PATH, MONEY_CHAIN);
     let cancelled = false;
     async function load() {
       const stored = sentGiftCodesFor(walletAddress);
@@ -126,8 +124,8 @@ export default function SentGiftsList({ walletAddress }: SentGiftsListProps) {
         await Promise.all(
           stored.map(async (item) => {
             const onChain = await client.readContract({
-              address: publicContracts().giftClaimer,
-              abi: giftClaimerAbi,
+              address: moneyContracts().giftyClaimer,
+              abi: giftyClaimerAbi,
               functionName: "gifts",
               args: [BigInt(item.codeHash)],
             });

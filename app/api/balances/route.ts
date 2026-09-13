@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAddress } from "viem";
-import { SEPOLIA_TOKEN_ADDRESSES } from "@/lib/chain/config";
-import { sepoliaRpcUrl } from "@/lib/chain/server-rpc";
+import { BASE_USDC } from "@/lib/chain/config";
+import { baseRpcUrl } from "@/lib/chain/server-rpc";
 
 type AlchemyTokenBalance = {
   contractAddress: string;
@@ -9,7 +9,7 @@ type AlchemyTokenBalance = {
 };
 
 async function alchemy(method: string, params: unknown[]) {
-  const res = await fetch(sepoliaRpcUrl(), {
+  const res = await fetch(baseRpcUrl(), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
@@ -28,29 +28,25 @@ export async function GET(request: Request) {
   try {
     const [ethHex, tokenResult] = await Promise.all([
       alchemy("eth_getBalance", [address, "latest"]) as Promise<string>,
-      alchemy("alchemy_getTokenBalances", [
-        address,
-        [SEPOLIA_TOKEN_ADDRESSES.USDC, SEPOLIA_TOKEN_ADDRESSES.USDT],
-      ]) as Promise<{ tokenBalances: AlchemyTokenBalance[] }>,
+      alchemy("alchemy_getTokenBalances", [address, [BASE_USDC]]) as Promise<{
+        tokenBalances: AlchemyTokenBalance[];
+      }>,
     ]);
 
-    const byAddress = new Map(
-      (tokenResult.tokenBalances ?? []).map((row) => [
-        row.contractAddress.toLowerCase(),
-        BigInt(row.tokenBalance ?? "0x0").toString(),
-      ]),
-    );
+    const usdc =
+      tokenResult.tokenBalances?.find(
+        (row) => row.contractAddress.toLowerCase() === BASE_USDC.toLowerCase(),
+      )?.tokenBalance ?? "0x0";
 
     return NextResponse.json({
       ETH: BigInt(ethHex).toString(),
-      USDC: byAddress.get(SEPOLIA_TOKEN_ADDRESSES.USDC.toLowerCase()) ?? "0",
-      USDT: byAddress.get(SEPOLIA_TOKEN_ADDRESSES.USDT.toLowerCase()) ?? "0",
+      USDC: BigInt(usdc).toString(),
     });
   } catch (error) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Could not read Sepolia balances",
+          error instanceof Error ? error.message : "Could not read Base balances",
       },
       { status: 502 },
     );

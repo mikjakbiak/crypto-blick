@@ -1,6 +1,6 @@
 import { extractGiftCode } from "@/lib/zk/code";
 
-const CLAIM_CODE_KEY = "crypto-blick:claim-code";
+const CLAIM_CODE_KEY = "gifty:claim-code";
 
 export function rememberClaimCode(code: string) {
   const trimmed = extractGiftCode(code);

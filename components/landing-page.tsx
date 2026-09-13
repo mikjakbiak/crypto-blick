@@ -24,7 +24,7 @@ const STEPS = [
   {
     n: "03",
     title: "Pick a free username",
-    body: "Every account gets a name on our ENS namespace. You become beeinger — not a string of hex.",
+    body: "Every account gets a name on our ENS namespace. You become beeinger.gifty.eth — not a string of hex.",
   },
   {
     n: "04",
@@ -93,7 +93,7 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
             href="#top"
             className="font-display text-lg font-semibold tracking-tight text-teal-950 dark:text-teal-100"
           >
-            Crypto Blick
+            Gifty
           </a>
           <nav className="hidden items-center gap-7 text-sm text-zinc-600 md:flex dark:text-zinc-400">
             <a href="#how" className="transition-colors hover:text-teal-900 dark:hover:text-teal-200">
@@ -125,9 +125,9 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
               Send money the way you already send messages.
             </h1>
             <p className="mt-5 max-w-xl text-pretty text-base leading-7 text-zinc-600 sm:text-lg sm:leading-8 dark:text-zinc-400">
-              Crypto Blick is for people who should not have to learn addresses
+              Gifty is for people who should not have to learn addresses
               to get paid. Share a gift link. Sign in with email. Choose a free
-              username. Funds move on Ethereum — the app feels like a calm
+              username. Funds move on Base — the app feels like a calm
               fintech.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -404,7 +404,7 @@ export default function LandingPage({ initialCode }: LandingPageProps) {
 
       <footer className="relative border-t border-teal-950/8 py-8 dark:border-white/8">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p>Crypto Blick — send by name, link, or phone.</p>
+          <p>Gifty — send by name, link, or phone.</p>
           <p>Value moves on Ethereum. You never have to say that first.</p>
         </div>
       </footer>

@@ -1,17 +1,18 @@
-import type { Hex } from "viem";
+import type { Chain, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { appPublicClient, appWalletClient } from "./clients";
-import { sepoliaRpcUrl } from "./server-rpc";
+import { ENS_CHAIN } from "./config";
+import { baseRpcUrl, sepoliaRpcUrl } from "./server-rpc";
 
-export function operatorClients() {
+export function operatorClients(chain: Chain) {
   const key = process.env.DEPLOYER_PRIVATE_KEY;
   if (!key) throw new Error("Missing DEPLOYER_PRIVATE_KEY");
-  const rpcUrl = sepoliaRpcUrl();
+  const rpcUrl = chain.id === ENS_CHAIN.id ? sepoliaRpcUrl() : baseRpcUrl();
   const account = privateKeyToAccount(key as Hex);
   return {
     account,
-    publicClient: appPublicClient(rpcUrl),
-    wallet: appWalletClient(rpcUrl, account),
+    publicClient: appPublicClient(rpcUrl, chain),
+    wallet: appWalletClient(rpcUrl, account, chain),
   };
 }
 

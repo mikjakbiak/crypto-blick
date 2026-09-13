@@ -25,9 +25,11 @@ import {
 } from "@/lib/contacts";
 import UsernameForm from "@/components/username-form";
 import GiftReceived from "@/components/gift-received";
+import DemoSpendCard from "@/components/demo-spend-card";
 import useResumeGiftClaim from "@/components/use-resume-gift-claim";
 import { homePath } from "@/lib/paths";
 import { resolveClaimCode } from "@/lib/claim-code";
+import { BASE_USDC } from "@/lib/chain/config";
 import { DASHBOARD_TOKENS, formatTokenAmount, formatUsd } from "@/lib/tokens";
 
 type Tab = "assets" | "send" | "contacts";
@@ -90,14 +92,16 @@ export default function Dashboard() {
   const [balances, setBalances] = useState<{
     ETH: string;
     USDC: string;
-    USDT: string;
   } | null>(null);
+  const [fundAsset, setFundAsset] = useState<"ETH" | "USDC">("ETH");
   const [ensName, setEnsName] = useState<string | null>(null);
   const [ensReady, setEnsReady] = useState(false);
   const [balancesVersion, setBalancesVersion] = useState(0);
   const [usernameVersion, setUsernameVersion] = useState(0);
   const [funding, setFunding] = useState(false);
   const [fundingError, setFundingError] = useState<string | null>(null);
+  const [swapping, setSwapping] = useState(false);
+  const [swapError, setSwapError] = useState<string | null>(null);
   const [contactName, setContactName] = useState("");
   const [contactAddress, setContactAddress] = useState("");
   const [contactError, setContactError] = useState<string | null>(null);
@@ -128,14 +132,12 @@ export default function Dashboard() {
       const nextBalances = (await balanceRes.json()) as {
         ETH?: string;
         USDC?: string;
-        USDT?: string;
       };
       const nextEns = (await ensRes.json()) as { ens?: string | null };
       if (cancelled) return;
       setBalances({
         ETH: nextBalances.ETH ?? "0",
         USDC: nextBalances.USDC ?? "0",
-        USDT: nextBalances.USDT ?? "0",
       });
       setEnsName(nextEns.ens ?? null);
       setEnsReady(true);
@@ -214,17 +216,23 @@ export default function Dashboard() {
     });
   }
 
+  function fundDestination() {
+    if (!wallet?.address) return null;
+    return {
+      address: wallet.address,
+      chain: "eip155:8453" as const,
+      asset: fundAsset === "ETH" ? "native-currency" : BASE_USDC,
+    };
+  }
+
   async function handleOnRamp() {
-    if (!wallet?.address || funding) return;
+    const destination = fundDestination();
+    if (!destination || funding || swapping) return;
     setFunding(true);
     setFundingError(null);
     try {
       await addFunds({
-        destination: {
-          address: wallet.address,
-          chain: "eip155:11155111",
-          asset: "native-currency",
-        },
+        destination,
         fiat: {
           source: {
             assets: ["usd", "eur"],
@@ -234,10 +242,29 @@ export default function Dashboard() {
           defaultAmount: "50",
         },
       });
+      refreshBalances();
     } catch {
       setFundingError("The funding flow was cancelled or could not be opened.");
     } finally {
       setFunding(false);
+    }
+  }
+
+  async function handleSwap() {
+    const destination = fundDestination();
+    if (!destination || funding || swapping) return;
+    setSwapping(true);
+    setSwapError(null);
+    try {
+      await addFunds({
+        destination,
+        crypto: { slippageBps: 100 },
+      });
+      refreshBalances();
+    } catch {
+      setSwapError("The swap flow was cancelled or could not be opened.");
+    } finally {
+      setSwapping(false);
     }
   }
 
@@ -390,20 +417,57 @@ export default function Dashboard() {
               <p className="mt-1 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
                 {loadingBalances ? "…" : formatUsd(totalUsd)}
               </p>
-              <button
-                type="button"
-                onClick={handleOnRamp}
-                disabled={!walletsReady || !wallet || funding}
-                className="mt-5 min-h-12 w-full rounded-xl bg-zinc-900 px-4 text-base font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+              <div
+                className="mt-5 grid grid-cols-2 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
+                role="group"
+                aria-label="Onramp asset"
               >
-                {funding ? "Opening on-ramp…" : "Add funds"}
-              </button>
+                {(["ETH", "USDC"] as const).map((asset) => (
+                  <button
+                    key={asset}
+                    type="button"
+                    onClick={() => setFundAsset(asset)}
+                    className={`min-h-10 rounded-lg px-3 text-sm font-medium transition-colors ${
+                      fundAsset === asset
+                        ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                        : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    {asset}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleOnRamp}
+                  disabled={!walletsReady || !wallet || funding || swapping}
+                  className="min-h-12 rounded-xl bg-zinc-900 px-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+                >
+                  {funding ? "Opening…" : `Add ${fundAsset}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSwap}
+                  disabled={!walletsReady || !wallet || funding || swapping}
+                  className="min-h-12 rounded-xl border border-zinc-200 px-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
+                >
+                  {swapping ? "Opening…" : `Swap to ${fundAsset}`}
+                </button>
+              </div>
               {fundingError ? (
                 <p className="mt-3 text-sm text-red-600 dark:text-red-400">
                   {fundingError}
                 </p>
               ) : null}
+              {swapError ? (
+                <p className="mt-3 text-sm text-red-600 dark:text-red-400">
+                  {swapError}
+                </p>
+              ) : null}
             </section>
+
+            {walletAddress ? <DemoSpendCard address={walletAddress} /> : null}
 
             <section>
               <h2 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">

@@ -1,7 +1,7 @@
 import { packetToBytes } from "viem/ens";
 import { encodeFunctionData, hexToBytes, toHex } from "viem";
-import { ensParentName, publicContracts, SEPOLIA_ENS_V2, usernameRegistrarAddresses } from "./config";
-import { universalResolverAbi, usernameRegistrarAbi } from "./abi";
+import { ENS_CHAIN, ensContracts, ensParentName, SEPOLIA_ENS_V2 } from "./config";
+import { giftyRegistrarAbi, universalResolverAbi } from "./abi";
 import { appPublicClient } from "./clients";
 
 const ADDR_ABI = [
@@ -43,7 +43,7 @@ function dnsName(name: string) {
 }
 
 export async function resolveNameToAddress(rpcUrl: string, name: string) {
-  const client = appPublicClient(rpcUrl);
+  const client = appPublicClient(rpcUrl, ENS_CHAIN);
   const data = encodeFunctionData({
     abi: ADDR_ABI,
     functionName: "addr",
@@ -68,24 +68,22 @@ export async function resolveNameToAddress(rpcUrl: string, name: string) {
 }
 
 export async function usernameOf(rpcUrl: string, address: `0x${string}`) {
-  const client = appPublicClient(rpcUrl);
-  for (const registrar of usernameRegistrarAddresses()) {
-    const label = await client.readContract({
-      address: registrar,
-      abi: usernameRegistrarAbi,
-      functionName: "labelOf",
-      args: [address],
-    });
-    if (label) return toFullUsername(label);
-  }
+  const client = appPublicClient(rpcUrl, ENS_CHAIN);
+  const label = await client.readContract({
+    address: ensContracts().usernameRegistrar,
+    abi: giftyRegistrarAbi,
+    functionName: "labelOf",
+    args: [address],
+  });
+  if (label) return toFullUsername(label);
   return null;
 }
 
 export async function isUsernameAvailable(rpcUrl: string, label: string) {
-  const client = appPublicClient(rpcUrl);
+  const client = appPublicClient(rpcUrl, ENS_CHAIN);
   return client.readContract({
-    address: publicContracts().usernameRegistrar,
-    abi: usernameRegistrarAbi,
+    address: ensContracts().usernameRegistrar,
+    abi: giftyRegistrarAbi,
     functionName: "isAvailable",
     args: [normalizeEnsLabel(label)],
   });

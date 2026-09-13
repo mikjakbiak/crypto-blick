@@ -5,8 +5,8 @@ export type Contact = {
   createdAt: number;
 };
 
-const CONTACTS_KEY = "crypto-blick:contacts";
-const CONTACTS_EVENT = "crypto-blick:contacts-changed";
+const CONTACTS_KEY = "gifty:contacts";
+const CONTACTS_EVENT = "gifty:contacts-changed";
 
 function canUseStorage() {
   return typeof window !== "undefined";

@@ -1,5 +1,5 @@
-const KEY = "crypto-blick:sent-gift-codes";
-const EVENT = "crypto-blick:sent-gift-codes";
+const KEY = "gifty:sent-gift-codes";
+const EVENT = "gifty:sent-gift-codes";
 
 export type SentGiftCode = {
   codeHash: string;

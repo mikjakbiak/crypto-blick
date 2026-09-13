@@ -1,17 +1,18 @@
-import { createPublicClient, http, type Address, type Hex } from "viem";
-import { APP_CHAIN } from "./config";
+import { createPublicClient, http, type Address, type Chain, type Hex } from "viem";
 import { hasSelfPayGas } from "./gas";
 
 type SponsorResult = { hash: Hex };
 
 export async function submitUserTxOrSponsor(args: {
   account: Address;
+  chain: Chain;
+  rpcPath: string;
   sendSelf: () => Promise<Hex>;
   sponsor: () => Promise<SponsorResult>;
 }): Promise<{ hash: Hex; sponsored: boolean }> {
   const publicClient = createPublicClient({
-    chain: APP_CHAIN,
-    transport: http("/api/rpc"),
+    chain: args.chain,
+    transport: http(args.rpcPath),
   });
   const selfPay = await hasSelfPayGas(publicClient, args.account);
   const hash = selfPay ? await args.sendSelf() : (await args.sponsor()).hash;

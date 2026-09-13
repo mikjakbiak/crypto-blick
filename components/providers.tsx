@@ -3,7 +3,7 @@
 import isPropValid from "@emotion/is-prop-valid";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { StyleSheetManager } from "styled-components";
-import { sepolia } from "viem/chains";
+import { base, sepolia } from "viem/chains";
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
@@ -28,11 +28,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         config={{
           appearance: {
             walletChainType: "ethereum-only",
-            landingHeader: "Crypto Blick",
+            landingHeader: "Gifty",
             loginMessage: "Log in or create an account.",
           },
-          defaultChain: sepolia,
-          supportedChains: [sepolia],
+          defaultChain: base,
+          supportedChains: [base, sepolia],
           embeddedWallets: {
             ethereum: {
               createOnLogin: "users-without-wallets",

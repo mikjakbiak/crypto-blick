@@ -1,4 +1,4 @@
-export const giftClaimerAbi = [
+export const giftyClaimerAbi = [
   {
     type: "function",
     name: "createGift",
@@ -46,7 +46,7 @@ export const giftClaimerAbi = [
   },
   {
     type: "event",
-    name: "GiftCreated",
+    name: "GiftyCreated",
     inputs: [
       { name: "codeHash", type: "uint256", indexed: true },
       { name: "sender", type: "address", indexed: true },
@@ -55,7 +55,7 @@ export const giftClaimerAbi = [
   },
   {
     type: "event",
-    name: "GiftClaimed",
+    name: "GiftyClaimed",
     inputs: [
       { name: "codeHash", type: "uint256", indexed: true },
       { name: "claimant", type: "address", indexed: true },
@@ -65,7 +65,7 @@ export const giftClaimerAbi = [
   },
 ] as const;
 
-export const usernameRegistrarAbi = [
+export const giftyRegistrarAbi = [
   {
     type: "function",
     name: "isAvailable",

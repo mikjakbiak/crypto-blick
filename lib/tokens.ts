@@ -7,7 +7,7 @@ export type TokenDefinition = {
   kind: "native" | "erc20";
 };
 
-/** Tokens shown on the dashboard. Balances come from Alchemy on Sepolia. */
+/** Tokens shown on the dashboard. Balances come from Alchemy on Base. */
 export const DASHBOARD_TOKENS: TokenDefinition[] = [
   {
     symbol: "ETH",
@@ -19,13 +19,6 @@ export const DASHBOARD_TOKENS: TokenDefinition[] = [
   {
     symbol: "USDC",
     name: "USD Coin",
-    decimals: 6,
-    priceUsd: 1,
-    kind: "erc20",
-  },
-  {
-    symbol: "USDT",
-    name: "Tether",
     decimals: 6,
     priceUsd: 1,
     kind: "erc20",

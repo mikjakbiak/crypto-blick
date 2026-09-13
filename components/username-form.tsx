@@ -2,8 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useWallets } from "@privy-io/react-auth";
-import { usernameRegistrarAbi } from "@/lib/chain/abi";
-import { publicContracts } from "@/lib/chain/config";
+import { giftyRegistrarAbi } from "@/lib/chain/abi";
+import { ENS_CHAIN, ENS_RPC_PATH, ensContracts } from "@/lib/chain/config";
 import {
   ensParent,
   isValidEnsLabel,
@@ -68,11 +68,13 @@ export default function UsernameForm({
       const owner = address as `0x${string}`;
       await submitUserTxOrSponsor({
         account: owner,
+        chain: ENS_CHAIN,
+        rpcPath: ENS_RPC_PATH,
         sendSelf: async () => {
-          const client = await walletClientFromPrivy(wallet);
+          const client = await walletClientFromPrivy(wallet, ENS_CHAIN);
           return client.writeContract({
-            address: publicContracts().usernameRegistrar,
-            abi: usernameRegistrarAbi,
+            address: ensContracts().usernameRegistrar,
+            abi: giftyRegistrarAbi,
             functionName: "register",
             args: [normalized, owner],
           });

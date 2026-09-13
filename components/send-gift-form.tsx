@@ -2,9 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { useWallets } from "@privy-io/react-auth";
-import { createPublicClient, http, isAddress, parseEther } from "viem";
-import { giftClaimerAbi } from "@/lib/chain/abi";
-import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
+import { isAddress, parseEther } from "viem";
+import { giftyClaimerAbi } from "@/lib/chain/abi";
+import { browserPublicClient } from "@/lib/chain/clients";
+import { MONEY_CHAIN, MONEY_RPC_PATH, moneyContracts } from "@/lib/chain/config";
 import { MIN_GIFT_WEI } from "@/lib/chain/constants";
 import { walletClientFromPrivy } from "@/lib/chain/wallet";
 import { generateGiftCode } from "@/lib/zk/code";
@@ -97,7 +98,7 @@ export default function SendGiftForm({
         return;
       }
 
-      const client = await walletClientFromPrivy(wallet);
+      const client = await walletClientFromPrivy(wallet, MONEY_CHAIN);
 
       if (mode === "transfer") {
         const trimmedRecipient = recipient.trim();
@@ -138,19 +139,16 @@ export default function SendGiftForm({
       const code = generateGiftCode();
       const codeHash = hashCode(code);
       const hash = await client.writeContract({
-        address: publicContracts().giftClaimer,
-        abi: giftClaimerAbi,
+        address: moneyContracts().giftyClaimer,
+        abi: giftyClaimerAbi,
         functionName: "createGift",
         args: [codeHash],
         value: parseEther(amount),
       });
-      const publicClient = createPublicClient({
-        chain: APP_CHAIN,
-        transport: http("/api/rpc"),
-      });
+      const publicClient = browserPublicClient(MONEY_RPC_PATH, MONEY_CHAIN);
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       if (receipt.status !== "success") {
-        throw new Error("Gift lock reverted on Sepolia.");
+        throw new Error("Gift lock reverted on Base.");
       }
 
       rememberSentGiftCode(wallet.address, {
@@ -180,7 +178,7 @@ export default function SendGiftForm({
       <div className="flex flex-col gap-4 text-left">
         <div>
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Sent on Sepolia
+            Sent on Base
           </p>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Transferred {sendResult.amountEth} ETH to {sendResult.recipient}
@@ -208,7 +206,7 @@ export default function SendGiftForm({
       <div className="flex flex-col gap-4 text-left">
         <div>
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Gift locked on Sepolia
+            Gift locked on Base
           </p>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Locked {sendResult.amountEth} ETH
@@ -324,8 +322,8 @@ export default function SendGiftForm({
       >
         {sendBusy
           ? mode === "transfer"
-            ? "Sending on Sepolia…"
-            : "Locking on Sepolia…"
+            ? "Sending on Base…"
+            : "Locking on Base…"
           : mode === "transfer"
             ? "Send ETH"
             : "Send"}
