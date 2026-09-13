@@ -45,3 +45,15 @@ export function publicContracts() {
     ensParent: ensParentName(),
   };
 }
+
+export function usernameRegistrarAddresses() {
+  const current = requireAddress(
+    process.env.NEXT_PUBLIC_USERNAME_REGISTRAR,
+    "NEXT_PUBLIC_USERNAME_REGISTRAR",
+  );
+  const previous = (process.env.NEXT_PUBLIC_PREVIOUS_USERNAME_REGISTRARS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value): value is `0x${string}` => /^0x[0-9a-fA-F]{40}$/.test(value));
+  return [current, ...previous.filter((value) => value.toLowerCase() !== current.toLowerCase())];
+}

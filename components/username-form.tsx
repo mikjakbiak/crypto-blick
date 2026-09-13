@@ -10,6 +10,7 @@ import {
   normalizeEnsLabel,
   toFullUsername,
 } from "@/lib/chain/ens";
+import { postSponsor, submitUserTxOrSponsor } from "@/lib/chain/submit";
 import { walletClientFromPrivy } from "@/lib/chain/wallet";
 
 type UsernameFormProps = {
@@ -64,12 +65,20 @@ export default function UsernameForm({
         return;
       }
 
-      const client = await walletClientFromPrivy(wallet);
-      await client.writeContract({
-        address: publicContracts().usernameRegistrar,
-        abi: usernameRegistrarAbi,
-        functionName: "register",
-        args: [normalized, address as `0x${string}`],
+      const owner = address as `0x${string}`;
+      await submitUserTxOrSponsor({
+        account: owner,
+        sendSelf: async () => {
+          const client = await walletClientFromPrivy(wallet);
+          return client.writeContract({
+            address: publicContracts().usernameRegistrar,
+            abi: usernameRegistrarAbi,
+            functionName: "register",
+            args: [normalized, owner],
+          });
+        },
+        sponsor: () =>
+          postSponsor("/api/operator/register", { label: normalized, owner }),
       });
       onRegistered(toFullUsername(normalized));
     } catch (caught) {

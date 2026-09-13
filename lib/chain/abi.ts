@@ -18,6 +18,16 @@ export const giftClaimerAbi = [
   },
   {
     type: "function",
+    name: "claimFor",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "proof", type: "uint256[24]" },
+      { name: "publicSignals", type: "uint256[2]" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "gifts",
     stateMutability: "view",
     inputs: [{ name: "codeHash", type: "uint256" }],

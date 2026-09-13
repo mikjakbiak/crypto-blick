@@ -7,6 +7,7 @@ import { createPublicClient, http } from "viem";
 import { plonk } from "snarkjs";
 import { giftClaimerAbi } from "@/lib/chain/abi";
 import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
+import { postSponsor, submitUserTxOrSponsor } from "@/lib/chain/submit";
 import { walletClientFromPrivy } from "@/lib/chain/wallet";
 import { forgetClaimCode, resolveClaimCode } from "@/lib/claim-code";
 import { dashboardPath } from "@/lib/paths";
@@ -76,15 +77,27 @@ export default function useResumeGiftClaim(
           claimCode,
           claimant,
         );
-        const client = await walletClientFromPrivy(claimantWallet);
-        await client.writeContract({
-          address: publicContracts().giftClaimer,
-          abi: giftClaimerAbi,
-          functionName: "claim",
-          args: [
-            plonkProofTuple(proved.proof),
-            [BigInt(proved.publicSignals[0]), BigInt(proved.publicSignals[1])],
-          ],
+        const proof = plonkProofTuple(proved.proof);
+        const publicSignals = [
+          BigInt(proved.publicSignals[0]),
+          BigInt(proved.publicSignals[1]),
+        ] as const;
+        await submitUserTxOrSponsor({
+          account: claimant as `0x${string}`,
+          sendSelf: async () => {
+            const client = await walletClientFromPrivy(claimantWallet);
+            return client.writeContract({
+              address: publicContracts().giftClaimer,
+              abi: giftClaimerAbi,
+              functionName: "claim",
+              args: [proof, publicSignals],
+            });
+          },
+          sponsor: () =>
+            postSponsor("/api/operator/claim", {
+              proof: proof.map(String),
+              publicSignals: publicSignals.map(String),
+            }),
         });
         forgetClaimCode();
         if (!cancelled) setStatus("claimed");

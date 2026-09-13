@@ -1,6 +1,6 @@
 import { packetToBytes } from "viem/ens";
 import { encodeFunctionData, hexToBytes, toHex } from "viem";
-import { ensParentName, publicContracts, SEPOLIA_ENS_V2 } from "./config";
+import { ensParentName, publicContracts, SEPOLIA_ENS_V2, usernameRegistrarAddresses } from "./config";
 import { universalResolverAbi, usernameRegistrarAbi } from "./abi";
 import { appPublicClient } from "./clients";
 
@@ -69,14 +69,16 @@ export async function resolveNameToAddress(rpcUrl: string, name: string) {
 
 export async function usernameOf(rpcUrl: string, address: `0x${string}`) {
   const client = appPublicClient(rpcUrl);
-  const label = await client.readContract({
-    address: publicContracts().usernameRegistrar,
-    abi: usernameRegistrarAbi,
-    functionName: "labelOf",
-    args: [address],
-  });
-  if (!label) return null;
-  return toFullUsername(label);
+  for (const registrar of usernameRegistrarAddresses()) {
+    const label = await client.readContract({
+      address: registrar,
+      abi: usernameRegistrarAbi,
+      functionName: "labelOf",
+      args: [address],
+    });
+    if (label) return toFullUsername(label);
+  }
+  return null;
 }
 
 export async function isUsernameAvailable(rpcUrl: string, label: string) {

@@ -164,6 +164,8 @@ async function main() {
     process.exit(2);
   }
 
+  const previousPath = path.join(ROOT, "deployments", "sepolia.json");
+
   if (process.argv.includes("--parent-only")) {
     const previous = JSON.parse(
       await readFile(path.join(ROOT, "deployments", "sepolia.json"), "utf8"),
@@ -216,10 +218,7 @@ async function main() {
       ensParent: parentName,
       ensParentRegistered: true,
     };
-    await writeFile(
-      path.join(ROOT, "deployments", "sepolia.json"),
-      `${JSON.stringify(addresses, null, 2)}\n`,
-    );
+    await writeFile(previousPath, `${JSON.stringify(addresses, null, 2)}\n`);
     const envPath = path.join(ROOT, ".env");
     let contents = await readFile(envPath, "utf8");
     contents = upsertEnv(contents, "NEXT_PUBLIC_ENS_PARENT", parentName);
@@ -231,6 +230,88 @@ async function main() {
   const verifierArt = await loadArtifact("PlonkVerifier");
   const claimerArt = await loadArtifact("GiftClaimer");
   const registrarArt = await loadArtifact("FreeUsernameRegistrar");
+
+  if (!process.argv.includes("--full")) {
+    const previous = JSON.parse(await readFile(previousPath, "utf8")) as {
+      verifier?: Address;
+      giftClaimer?: Address;
+      usernameRegistrar?: Address;
+      previousUsernameRegistrars?: Address[];
+      userRegistry: Address;
+      resolver: Address;
+      ensParent: string;
+      deployer?: Address;
+    };
+    if (previous.userRegistry && previous.resolver && previous.ensParent) {
+      const parentNode = namehash(previous.ensParent);
+
+      const usernameHash = await wallet.deployContract({
+        abi: registrarArt.abi,
+        bytecode: registrarArt.bytecode.object,
+        args: [previous.userRegistry, previous.resolver, parentNode],
+      });
+      const usernameReceipt = await wait(publicClient, usernameHash);
+      const usernameRegistrar = usernameReceipt.contractAddress;
+      if (!usernameRegistrar) throw new Error("Username registrar deploy failed");
+
+      await wait(
+        publicClient,
+        await wallet.writeContract({
+          address: previous.userRegistry,
+          abi: userRegistryInitAbi,
+          functionName: "grantRootRoles",
+          args: [ROLE_REGISTRAR | ROLE_RENEW, usernameRegistrar],
+        }),
+      );
+      await wait(
+        publicClient,
+        await wallet.writeContract({
+          address: previous.resolver,
+          abi: permissionedResolverInitAbi,
+          functionName: "grantRootRoles",
+          args: [ALL_ROLES, usernameRegistrar],
+        }),
+      );
+
+      const previousRegistrars = [
+        ...(previous.previousUsernameRegistrars ?? []),
+        ...(previous.usernameRegistrar ? [previous.usernameRegistrar] : []),
+      ].filter(
+        (value, index, all) =>
+          all.findIndex((item) => item.toLowerCase() === value.toLowerCase()) ===
+          index,
+      );
+
+      const addresses = {
+        chain: "sepolia",
+        deployer: account.address,
+        verifier: previous.verifier,
+        giftClaimer: previous.giftClaimer,
+        userRegistry: previous.userRegistry,
+        resolver: previous.resolver,
+        usernameRegistrar,
+        previousUsernameRegistrars: previousRegistrars,
+        ensParent: previous.ensParent,
+        ensParentRegistered: true,
+      };
+      await writeFile(previousPath, `${JSON.stringify(addresses, null, 2)}\n`);
+      const envPath = path.join(ROOT, ".env");
+      let contents = await readFile(envPath, "utf8");
+      if (previous.giftClaimer) {
+        contents = upsertEnv(contents, "NEXT_PUBLIC_GIFT_CLAIMER", previous.giftClaimer);
+      }
+      contents = upsertEnv(contents, "NEXT_PUBLIC_USERNAME_REGISTRAR", usernameRegistrar);
+      contents = upsertEnv(
+        contents,
+        "NEXT_PUBLIC_PREVIOUS_USERNAME_REGISTRARS",
+        previousRegistrars.join(","),
+      );
+      contents = upsertEnv(contents, "NEXT_PUBLIC_ENS_PARENT", previous.ensParent);
+      await writeFile(envPath, contents);
+      console.log(JSON.stringify(addresses, null, 2));
+      return;
+    }
+  }
 
   const verifierHash = await wallet.deployContract({
     abi: verifierArt.abi,
