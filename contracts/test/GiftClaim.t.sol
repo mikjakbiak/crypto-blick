@@ -2,7 +2,9 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {GiftClaimer} from "../src/GiftClaimer.sol";
+import {Operated} from "../src/Operated.sol";
 import {PlonkVerifier} from "../src/PlonkVerifier.sol";
 
 contract GiftClaimTest is Test {
@@ -57,6 +59,82 @@ contract GiftClaimTest is Test {
         assertEq(amount, 1 ether);
         assertFalse(claimed);
     }
+
+    function test_createGiftBelowMinReverts() public {
+        vm.expectRevert(GiftClaimer.GiftTooSmall.selector);
+        claimer.createGift{value: 0.0009 ether}(uint256(keccak256("small")));
+    }
+
+    function test_claimForPaysClaimantMinusFee() public {
+        uint256 fee = claimer.operatorFee();
+        uint256 beforeBal = ALICE.balance;
+        claimer.claimFor(aliceProof, aliceSignals);
+        assertEq(ALICE.balance, beforeBal + 1 ether - fee);
+        assertEq(claimer.ownerFunds(), fee);
+        (,, bool claimed) = claimer.gifts(aliceSignals[0]);
+        assertTrue(claimed);
+    }
+
+    function test_claimForRejectsNonOperator() public {
+        vm.prank(BOB);
+        vm.expectRevert(Operated.NotOperator.selector);
+        claimer.claimFor(aliceProof, aliceSignals);
+    }
+
+    function test_setOperatorRotatesClaimFor() public {
+        claimer.setOperator(BOB);
+        vm.prank(BOB);
+        claimer.claimFor(aliceProof, aliceSignals);
+        (,, bool claimed) = claimer.gifts(aliceSignals[0]);
+        assertTrue(claimed);
+    }
+
+    function test_twoStepOwnershipThenWithdraw() public {
+        claimer.claimFor(aliceProof, aliceSignals);
+        uint256 fee = claimer.ownerFunds();
+        address nextOwner = address(uint160(0xD00));
+        claimer.transferOwnership(nextOwner);
+        assertEq(claimer.owner(), address(this));
+        vm.prank(nextOwner);
+        claimer.acceptOwnership();
+        assertEq(claimer.owner(), nextOwner);
+
+        uint256 beforeBal = nextOwner.balance;
+        vm.prank(nextOwner);
+        claimer.withdrawOwnerFunds();
+        assertEq(nextOwner.balance, beforeBal + fee);
+    }
+
+    function test_nonOwnerCannotWithdraw() public {
+        claimer.claimFor(aliceProof, aliceSignals);
+        vm.prank(BOB);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, BOB));
+        claimer.withdrawOwnerFunds();
+    }
+
+    function test_withdrawOwnerFunds() public {
+        claimer.claimFor(aliceProof, aliceSignals);
+        uint256 fee = claimer.ownerFunds();
+        uint256 beforeBal = address(this).balance;
+        claimer.withdrawOwnerFunds();
+        assertEq(claimer.ownerFunds(), 0);
+        assertEq(address(this).balance, beforeBal + fee);
+    }
+
+    function test_setOperatorFeeCapped() public {
+        claimer.setOperatorFee(0.0001 ether);
+        assertEq(claimer.operatorFee(), 0.0001 ether);
+        vm.expectRevert(GiftClaimer.FeeTooHigh.selector);
+        claimer.setOperatorFee(0.00076 ether);
+    }
+
+    function test_directClaimTakesNoFee() public {
+        vm.prank(ALICE);
+        claimer.claim(aliceProof, aliceSignals);
+        assertEq(claimer.ownerFunds(), 0);
+    }
+
+    receive() external payable {}
 
     function _loadAlice() internal {
         string memory json = vm.readFile(string.concat(vm.projectRoot(), "/../artifacts/fixtures/alice.json"));
