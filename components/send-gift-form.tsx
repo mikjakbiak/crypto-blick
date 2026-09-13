@@ -12,6 +12,7 @@ import { generateGiftCode } from "@/lib/zk/code";
 import { hashCode } from "@/lib/zk/poseidon";
 import { toHex } from "@/lib/zk/snark";
 import { rememberSentGiftCode } from "@/lib/sent-gifts";
+import { giftLink } from "@/lib/app-url";
 
 export type SendMode = "gift" | "transfer";
 
@@ -210,7 +211,19 @@ export default function SendGiftForm({
         throw new Error("Gift lock reverted on Base.");
       }
 
-      finishGift();
+      rememberSentGiftCode(wallet.address, {
+        codeHash: toHex(codeHash),
+        code,
+        createdAt: Date.now(),
+      });
+
+      setSendResult({
+        kind: "gift",
+        code,
+        codeHash: toHex(codeHash),
+        amountEth: amount,
+        link: giftLink(code),
+      });
     } catch (error) {
       setSendError(
         error instanceof Error ? error.message : "Could not complete send.",

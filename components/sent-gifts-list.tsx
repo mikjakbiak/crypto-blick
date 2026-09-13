@@ -5,7 +5,7 @@ import { formatEther } from "viem";
 import { giftyClaimerAbi } from "@/lib/chain/abi";
 import { browserPublicClient } from "@/lib/chain/clients";
 import { MONEY_CHAIN, MONEY_RPC_PATH, moneyContracts } from "@/lib/chain/config";
-import { homePath } from "@/lib/paths";
+import { giftLink } from "@/lib/app-url";
 import {
   sentGiftCodesFor,
   sentGiftCodesSnapshot,
@@ -23,11 +23,6 @@ type ChainGift = {
 type SentGiftsListProps = {
   walletAddress: string;
 };
-
-function giftLink(code: string) {
-  if (typeof window === "undefined") return homePath(code);
-  return `${window.location.origin}${homePath(code)}`;
-}
 
 function formatWhen(createdAt: number) {
   if (!createdAt) return "On chain";

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import Providers from "@/components/providers";
+import { appOrigin } from "@/lib/app-url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,6 +20,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(appOrigin()),
   title: "Gifty",
   description:
     "Social crypto wallet. Send by username, gift link, or phone. Email signup, free ENS name, onramp and card in one calm app.",
