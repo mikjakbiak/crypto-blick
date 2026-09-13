@@ -31,3 +31,10 @@ export function browserWalletClient(provider: EIP1193Provider, account: Hex) {
     transport: custom(provider),
   });
 }
+
+export function browserPublicClient(provider: EIP1193Provider) {
+  return createPublicClient({
+    chain: APP_CHAIN,
+    transport: custom(provider),
+  });
+}
