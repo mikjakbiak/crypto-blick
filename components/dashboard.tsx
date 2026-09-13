@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -23,6 +24,7 @@ import {
   subscribeToContacts,
 } from "@/lib/contacts";
 import UsernameForm from "@/components/username-form";
+import GiftReceived from "@/components/gift-received";
 import useResumeGiftClaim from "@/components/use-resume-gift-claim";
 import { homePath } from "@/lib/paths";
 import { resolveClaimCode } from "@/lib/claim-code";
@@ -147,9 +149,13 @@ export default function Dashboard() {
   const contacts = walletAddress
     ? getContacts(walletAddress, contactsSnapshot)
     : [];
+  const refreshBalances = useCallback(() => {
+    setBalancesVersion((value) => value + 1);
+  }, []);
   const claim = useResumeGiftClaim(
     signedIn ? walletAddress : undefined,
     signedIn && walletAddress ? ensName : null,
+    refreshBalances,
   );
   const tokens = useMemo<TokenRow[]>(() => {
     const source = walletAddress ? balances : null;
@@ -343,6 +349,9 @@ export default function Dashboard() {
           <p className="rounded-2xl border border-teal-900/10 bg-teal-50 px-4 py-3 text-sm text-teal-900 dark:border-teal-400/20 dark:bg-teal-950/40 dark:text-teal-100">
             Claiming your gift to this wallet…
           </p>
+        ) : null}
+        {claim.status === "claimed" && claim.paidWei != null ? (
+          <GiftReceived paidWei={claim.paidWei} celebrate={claim.celebrate} />
         ) : null}
         {claim.status === "error" && claim.error ? (
           <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">

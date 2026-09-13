@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useWallets } from "@privy-io/react-auth";
-import { createPublicClient, http } from "viem";
+import { createPublicClient, http, parseEventLogs } from "viem";
 import { plonk } from "snarkjs";
 import { giftClaimerAbi } from "@/lib/chain/abi";
 import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
@@ -15,11 +15,12 @@ import { hashCode } from "@/lib/zk/poseidon";
 import { plonkProofTuple } from "@/lib/zk/plonk";
 import { proveClaim } from "@/lib/zk/prove";
 
-type ClaimStatus = "idle" | "claiming" | "claimed" | "error";
+export type ClaimStatus = "idle" | "claiming" | "claimed" | "error";
 
 export default function useResumeGiftClaim(
   walletAddress: string | undefined,
   username: string | null,
+  onClaimed?: () => void,
 ) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -28,24 +29,24 @@ export default function useResumeGiftClaim(
   const code = resolveClaimCode(rawCode);
   const [status, setStatus] = useState<ClaimStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [paidWei, setPaidWei] = useState<bigint | null>(null);
+  const [celebrate, setCelebrate] = useState(false);
   const startedFor = useRef<string | null>(null);
 
+  const wallet = wallets.find(
+    (candidate) =>
+      candidate.address.toLowerCase() === (walletAddress ?? "").toLowerCase(),
+  );
+
   useEffect(() => {
-    if (!walletAddress || !username || !code) return;
+    if (!walletAddress || !username || !code || !wallet) return;
     const key = `${walletAddress}:${code}`;
     if (startedFor.current === key) return;
     startedFor.current = key;
 
-    const wallet = wallets.find(
-      (candidate) =>
-        candidate.address.toLowerCase() === walletAddress.toLowerCase(),
-    );
-    if (!wallet) return;
-
     const claimantWallet = wallet;
     const claimCode = code;
     const claimant = walletAddress;
-    let cancelled = false;
 
     async function run() {
       setStatus("claiming");
@@ -65,8 +66,11 @@ export default function useResumeGiftClaim(
           throw new Error("Gift code was not found on chain.");
         }
         if (existing[2]) {
+          setPaidWei(existing[1]);
+          setCelebrate(false);
+          setStatus("claimed");
+          onClaimed?.();
           forgetClaimCode();
-          if (!cancelled) setStatus("claimed");
           router.replace(dashboardPath());
           return;
         }
@@ -82,7 +86,7 @@ export default function useResumeGiftClaim(
           BigInt(proved.publicSignals[0]),
           BigInt(proved.publicSignals[1]),
         ] as const;
-        await submitUserTxOrSponsor({
+        const { hash } = await submitUserTxOrSponsor({
           account: claimant as `0x${string}`,
           sendSelf: async () => {
             const client = await walletClientFromPrivy(claimantWallet);
@@ -99,11 +103,22 @@ export default function useResumeGiftClaim(
               publicSignals: publicSignals.map(String),
             }),
         });
+
+        const receipt = await publicClient.getTransactionReceipt({ hash });
+        const claimedLogs = parseEventLogs({
+          abi: giftClaimerAbi,
+          eventName: "GiftClaimed",
+          logs: receipt.logs,
+        });
+        const paid = claimedLogs[0]?.args.paid ?? existing[1];
+        setPaidWei(paid);
+        setCelebrate(true);
+        setStatus("claimed");
+        onClaimed?.();
         forgetClaimCode();
-        if (!cancelled) setStatus("claimed");
         router.replace(dashboardPath());
       } catch (caught) {
-        if (cancelled) return;
+        startedFor.current = null;
         setStatus("error");
         setError(
           caught instanceof Error
@@ -114,10 +129,7 @@ export default function useResumeGiftClaim(
     }
 
     void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [walletAddress, username, code, router, wallets]);
+  }, [walletAddress, username, code, wallet, router, onClaimed]);
 
-  return { code, status, error };
+  return { code, status, error, paidWei, celebrate };
 }
