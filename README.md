@@ -16,7 +16,7 @@ Env: see `.env.example`. `NEXT_PUBLIC_APP_URL` is the public origin (`https://gi
 
 Needs Foundry (`forge`). `bun run zk:setup` installs `circom` into `.bin/` if it is not already on PATH.
 
-Needs `NEXT_PUBLIC_PRIVY_APP_ID` (optional `NEXT_PUBLIC_PRIVY_CLIENT_ID`). Server swaps need `PRIVY_APP_SECRET` and Privy gas sponsorship. Privy wallets stay on Base. Sepolia ENS is operator-only.
+Needs `NEXT_PUBLIC_PRIVY_APP_ID` (optional `NEXT_PUBLIC_PRIVY_CLIENT_ID`). Server swaps need `PRIVY_APP_SECRET` on the host (Vercel too) and Privy gas sponsorship. Privy wallets stay on Base. Sepolia ENS is operator-only.
 
 ## Layout
 
