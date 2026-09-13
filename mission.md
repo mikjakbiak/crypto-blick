@@ -78,7 +78,9 @@ Money lives on **Base**. ENS lives on **Sepolia**.
 
 ### Money (Privy)
 
-- **Onramp:** live `useAddFunds` to Base ETH or Base USDC.
+- **Onramp:** live `useAddFunds` fiat buy of Base USDC. Stripe does not sell Base ETH.
+- **Deposit:** Privy crypto deposit address into Base ETH (send from another wallet/chain).
+- **Swap:** Privy wallet swap API, ETH↔USDC on Base. Needs app secret + gas sponsorship.
 - **Card:** demo spend card in the dashboard. Live issuing needs Privy + Bridge onboarding.
 
 ### Flows
