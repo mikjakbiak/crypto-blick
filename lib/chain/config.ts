@@ -1,6 +1,12 @@
-import { sepolia } from "viem/chains";
+import { base, sepolia } from "viem/chains";
 
-export const APP_CHAIN = sepolia;
+export const MONEY_CHAIN = base;
+export const ENS_CHAIN = sepolia;
+
+export const MONEY_RPC_PATH = "/api/rpc";
+export const ENS_RPC_PATH = "/api/ens-rpc";
+
+export const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
 
 export const SEPOLIA_ENS_V2 = {
   universalResolver: "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe",
@@ -16,6 +22,10 @@ export function alchemySepoliaUrl(apiKey: string) {
   return `https://eth-sepolia.g.alchemy.com/v2/${apiKey}`;
 }
 
+export function alchemyBaseUrl(apiKey: string) {
+  return `https://base-mainnet.g.alchemy.com/v2/${apiKey}`;
+}
+
 export function requireAddress(value: string | undefined, name: string) {
   if (!value || !/^0x[0-9a-fA-F]{40}$/.test(value)) {
     throw new Error(`Missing ${name}`);
@@ -24,15 +34,11 @@ export function requireAddress(value: string | undefined, name: string) {
 }
 
 export function ensParentName() {
-  return process.env.NEXT_PUBLIC_ENS_PARENT?.trim() || "gift.eth";
+  return process.env.NEXT_PUBLIC_ENS_PARENT?.trim() || "gifty.eth";
 }
 
-export function publicContracts() {
+export function ensContracts() {
   return {
-    giftClaimer: requireAddress(
-      process.env.NEXT_PUBLIC_GIFT_CLAIMER,
-      "NEXT_PUBLIC_GIFT_CLAIMER",
-    ),
     usernameRegistrar: requireAddress(
       process.env.NEXT_PUBLIC_USERNAME_REGISTRAR,
       "NEXT_PUBLIC_USERNAME_REGISTRAR",
@@ -41,14 +47,11 @@ export function publicContracts() {
   };
 }
 
-export function usernameRegistrarAddresses() {
-  const current = requireAddress(
-    process.env.NEXT_PUBLIC_USERNAME_REGISTRAR,
-    "NEXT_PUBLIC_USERNAME_REGISTRAR",
-  );
-  const previous = (process.env.NEXT_PUBLIC_PREVIOUS_USERNAME_REGISTRARS ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter((value): value is `0x${string}` => /^0x[0-9a-fA-F]{40}$/.test(value));
-  return [current, ...previous.filter((value) => value.toLowerCase() !== current.toLowerCase())];
+export function moneyContracts() {
+  return {
+    giftyClaimer: requireAddress(
+      process.env.NEXT_PUBLIC_GIFTY_CLAIMER,
+      "NEXT_PUBLIC_GIFTY_CLAIMER",
+    ),
+  };
 }

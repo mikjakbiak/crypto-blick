@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { giftClaimerAbi } from "@/lib/chain/abi";
-import { publicContracts } from "@/lib/chain/config";
+import { giftyClaimerAbi } from "@/lib/chain/abi";
+import { MONEY_CHAIN, moneyContracts } from "@/lib/chain/config";
 import { operatorClients, waitOperatorTx } from "@/lib/chain/operator";
 import { parseProof, parsePublicSignals } from "@/lib/chain/parse-proof";
 
@@ -17,10 +17,10 @@ export async function POST(request: Request) {
   try {
     const proof = parseProof(record.proof);
     const publicSignals = parsePublicSignals(record.publicSignals);
-    const { publicClient, wallet } = operatorClients();
+    const { publicClient, wallet } = operatorClients(MONEY_CHAIN);
     const hash = await wallet.writeContract({
-      address: publicContracts().giftClaimer,
-      abi: giftClaimerAbi,
+      address: moneyContracts().giftyClaimer,
+      abi: giftyClaimerAbi,
       functionName: "claimFor",
       args: [proof, publicSignals],
     });

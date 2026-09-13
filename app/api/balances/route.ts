@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAddress } from "viem";
-import { sepoliaRpcUrl } from "@/lib/chain/server-rpc";
+import { baseRpcUrl } from "@/lib/chain/server-rpc";
 import { getPortfolioUsdPrices } from "@/lib/prices";
 import type { PortfolioToken } from "@/lib/tokens";
 
@@ -36,7 +36,7 @@ function tokenLogoUrl(value: string | null | undefined) {
 const METADATA_CONCURRENCY = 8;
 
 async function alchemy(method: string, params: unknown[]) {
-  const res = await fetch(sepoliaRpcUrl(), {
+  const res = await fetch(baseRpcUrl(), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
@@ -191,7 +191,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Could not read balances",
+          error instanceof Error ? error.message : "Could not read Base balances",
       },
       { status: 502 },
     );

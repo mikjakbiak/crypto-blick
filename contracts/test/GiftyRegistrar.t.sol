@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {FreeUsernameRegistrar, IPermissionedResolver, IUserRegistry} from "../src/FreeUsernameRegistrar.sol";
+import {GiftyRegistrar, IPermissionedResolver, IUserRegistry} from "../src/GiftyRegistrar.sol";
 
 contract MockRegistry {
     uint256 public nextId = 1;
@@ -40,10 +40,10 @@ contract MockResolver {
     }
 }
 
-contract FreeUsernameRegistrarTest is Test {
+contract GiftyRegistrarTest is Test {
     MockRegistry internal registry;
     MockResolver internal resolver;
-    FreeUsernameRegistrar internal registrar;
+    GiftyRegistrar internal registrar;
     bytes32 internal parentNode;
 
     address internal constant USER = address(uint160(0xA11CE));
@@ -51,8 +51,8 @@ contract FreeUsernameRegistrarTest is Test {
     function setUp() public {
         registry = new MockRegistry();
         resolver = new MockResolver();
-        parentNode = keccak256("gift.eth");
-        registrar = new FreeUsernameRegistrar(
+        parentNode = keccak256("gifty.eth");
+        registrar = new GiftyRegistrar(
             IUserRegistry(address(registry)), IPermissionedResolver(address(resolver)), parentNode
         );
     }
@@ -70,7 +70,7 @@ contract FreeUsernameRegistrarTest is Test {
     function test_secondNameForOwnerReverts() public {
         vm.startPrank(USER);
         registrar.register("one", USER);
-        vm.expectRevert(FreeUsernameRegistrar.AlreadyNamed.selector);
+        vm.expectRevert(GiftyRegistrar.AlreadyNamed.selector);
         registrar.register("two", USER);
         vm.stopPrank();
     }
@@ -80,7 +80,7 @@ contract FreeUsernameRegistrarTest is Test {
         registrar.register("taken", USER);
         address other = address(uint160(0xB0B));
         vm.prank(other);
-        vm.expectRevert(FreeUsernameRegistrar.LabelTaken.selector);
+        vm.expectRevert(GiftyRegistrar.LabelTaken.selector);
         registrar.register("taken", other);
     }
 
@@ -89,7 +89,7 @@ contract FreeUsernameRegistrarTest is Test {
         assertFalse(registrar.isAvailable("beeinger"));
         address other = address(uint160(0xB0B));
         vm.prank(other);
-        vm.expectRevert(FreeUsernameRegistrar.LabelTaken.selector);
+        vm.expectRevert(GiftyRegistrar.LabelTaken.selector);
         registrar.register("beeinger", other);
     }
 
@@ -111,7 +111,7 @@ contract FreeUsernameRegistrarTest is Test {
     function test_nonOperatorCannotRegisterForOther() public {
         address other = address(uint160(0xB0B));
         vm.prank(other);
-        vm.expectRevert(FreeUsernameRegistrar.NotAuthorized.selector);
+        vm.expectRevert(GiftyRegistrar.NotAuthorized.selector);
         registrar.register("sneaky", USER);
     }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { baseRpcUrl } from "@/lib/chain/server-rpc";
+import { sepoliaRpcUrl } from "@/lib/chain/server-rpc";
 
 export async function POST(request: Request) {
   let payload: unknown;
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const upstream = await fetch(baseRpcUrl(), {
+  const upstream = await fetch(sepoliaRpcUrl(), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),

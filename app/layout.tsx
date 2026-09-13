@@ -19,7 +19,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Crypto Blick",
+  title: "Gifty",
   description:
     "Social crypto wallet. Send by username, gift link, or phone. Email signup, free ENS name, onramp and card in one calm app.",
 };

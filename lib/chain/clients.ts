@@ -4,37 +4,51 @@ import {
   custom,
   http,
   type Account,
+  type Chain,
   type EIP1193Provider,
   type Hex,
 } from "viem";
-import { APP_CHAIN } from "./config";
 
-export function appPublicClient(rpcUrl: string) {
+export function appPublicClient(rpcUrl: string, chain: Chain) {
   return createPublicClient({
-    chain: APP_CHAIN,
+    chain,
     transport: http(rpcUrl),
   });
 }
 
-export function appWalletClient(rpcUrl: string, account: Account) {
+export function appWalletClient(rpcUrl: string, account: Account, chain: Chain) {
   return createWalletClient({
     account,
-    chain: APP_CHAIN,
+    chain,
     transport: http(rpcUrl),
   });
 }
 
-export function browserWalletClient(provider: EIP1193Provider, account: Hex) {
+export function browserWalletClient(
+  provider: EIP1193Provider,
+  account: Hex,
+  chain: Chain,
+) {
   return createWalletClient({
     account,
-    chain: APP_CHAIN,
+    chain,
     transport: custom(provider),
   });
 }
 
-export function browserPublicClient(provider: EIP1193Provider) {
+export function browserPublicClient(rpcPath: string, chain: Chain) {
   return createPublicClient({
-    chain: APP_CHAIN,
+    chain,
+    transport: http(rpcPath),
+  });
+}
+
+export function browserProviderPublicClient(
+  provider: EIP1193Provider,
+  chain: Chain,
+) {
+  return createPublicClient({
+    chain,
     transport: custom(provider),
   });
 }

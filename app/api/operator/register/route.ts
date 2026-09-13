@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAddress } from "viem";
-import { usernameRegistrarAbi } from "@/lib/chain/abi";
-import { publicContracts } from "@/lib/chain/config";
+import { giftyRegistrarAbi } from "@/lib/chain/abi";
+import { ENS_CHAIN, ensContracts } from "@/lib/chain/config";
 import { operatorClients, waitOperatorTx } from "@/lib/chain/operator";
 import { isValidEnsLabel, normalizeEnsLabel } from "@/lib/chain/ens";
 
@@ -27,10 +27,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { publicClient, wallet } = operatorClients();
+    const { publicClient, wallet } = operatorClients(ENS_CHAIN);
     const hash = await wallet.writeContract({
-      address: publicContracts().usernameRegistrar,
-      abi: usernameRegistrarAbi,
+      address: ensContracts().usernameRegistrar,
+      abi: giftyRegistrarAbi,
       functionName: "register",
       args: [label, owner],
     });

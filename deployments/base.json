@@ -1,0 +1,6 @@
+{
+  "chain": "base",
+  "deployer": "0xB00Dd059ce3c1474deB6F44fa2f6457Bcb0A3d26",
+  "verifier": "0x13a97c32e4519122ded6b880fc75427f646c0be8",
+  "giftyClaimer": "0x9e571897435375693163edc8863bd431ee2e765f"
+}
