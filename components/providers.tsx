@@ -3,7 +3,7 @@
 import isPropValid from "@emotion/is-prop-valid";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { StyleSheetManager } from "styled-components";
-import { base, sepolia } from "viem/chains";
+import { base } from "viem/chains";
 import { silencePrivyIsActiveWarning } from "@/lib/silence-privy-isactive-warning";
 
 silencePrivyIsActiveWarning();
@@ -35,7 +35,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             loginMessage: "Log in or create an account.",
           },
           defaultChain: base,
-          supportedChains: [base, sepolia],
+          supportedChains: [base],
           embeddedWallets: {
             ethereum: {
               createOnLogin: "users-without-wallets",

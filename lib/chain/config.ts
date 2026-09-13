@@ -4,7 +4,6 @@ export const MONEY_CHAIN = base;
 export const ENS_CHAIN = sepolia;
 
 export const MONEY_RPC_PATH = "/api/rpc";
-export const ENS_RPC_PATH = "/api/ens-rpc";
 
 export const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
 

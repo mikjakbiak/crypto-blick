@@ -12,11 +12,11 @@ bun run deploy:base
 bun dev
 ```
 
-Env: see `.env.example`. `NEXT_PUBLIC_APP_URL` is the public origin (`https://gifty.energia.dev`) used for gift links and metadata. `ALCHEMY_API_KEY` stays server-side (`/api/rpc` Base, `/api/ens-rpc` Sepolia, `/api/balances`, `/api/ens`). Deployer key is `DEPLOYER_PRIVATE_KEY`. After deploy, `NEXT_PUBLIC_GIFTY_CLAIMER` (Base), `NEXT_PUBLIC_USERNAME_REGISTRAR` (Sepolia), and `NEXT_PUBLIC_ENS_PARENT=gifty.eth` are written into `.env`. Verify uses `ETHERSCAN_API_KEY`.
+Env: see `.env.example`. `NEXT_PUBLIC_APP_URL` is the public origin (`https://gifty.energia.dev`) used for gift links and metadata. `ALCHEMY_API_KEY` stays server-side (`/api/rpc` Base, `/api/balances`, `/api/ens`). Deployer key is `DEPLOYER_PRIVATE_KEY`. After deploy, `NEXT_PUBLIC_GIFTY_CLAIMER` (Base), `NEXT_PUBLIC_USERNAME_REGISTRAR` (Sepolia), and `NEXT_PUBLIC_ENS_PARENT=gifty.eth` are written into `.env`. Verify uses `ETHERSCAN_API_KEY`.
 
 Needs Foundry (`forge`). `bun run zk:setup` installs `circom` into `.bin/` if it is not already on PATH.
 
-Needs `NEXT_PUBLIC_PRIVY_APP_ID` (optional `NEXT_PUBLIC_PRIVY_CLIENT_ID`). Privy default chain is Base; Sepolia is for ENS only.
+Needs `NEXT_PUBLIC_PRIVY_APP_ID` (optional `NEXT_PUBLIC_PRIVY_CLIENT_ID`). Privy wallets stay on Base. Sepolia ENS is operator-only.
 
 ## Layout
 
@@ -33,7 +33,7 @@ Needs `NEXT_PUBLIC_PRIVY_APP_ID` (optional `NEXT_PUBLIC_PRIVY_CLIENT_ID`). Privy
 
 ## Chain split
 
-- **Sepolia:** ENSv2 parent `gifty.eth`, `GiftyRegistrar`, username mint. Operator sponsors register if the user has no Sepolia ETH.
+- **Sepolia:** ENSv2 parent `gifty.eth`, `GiftyRegistrar`, username mint. Operator always sponsors register. User wallet never switches to Sepolia.
 - **Base:** `GiftyClaimer` + `GiftyVerifier`, transfers, balances, Privy `useAddFunds` (fiat onramp + crypto swap into ETH or USDC). Operator sponsors claims if the user has no Base ETH.
 
 ## Progress

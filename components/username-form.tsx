@@ -1,17 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useWallets } from "@privy-io/react-auth";
-import { giftyRegistrarAbi } from "@/lib/chain/abi";
-import { ENS_CHAIN, ENS_RPC_PATH, ensContracts } from "@/lib/chain/config";
 import {
   ensParent,
   isValidEnsLabel,
   normalizeEnsLabel,
   toFullUsername,
 } from "@/lib/chain/ens";
-import { postSponsor, submitUserTxOrSponsor } from "@/lib/chain/submit";
-import { walletClientFromPrivy } from "@/lib/chain/wallet";
+import { postSponsor } from "@/lib/chain/submit";
 
 type UsernameFormProps = {
   address: string;
@@ -28,11 +24,6 @@ export default function UsernameForm({
   address,
   onRegistered,
 }: UsernameFormProps) {
-  const { wallets } = useWallets();
-  const wallet =
-    wallets.find(
-      (candidate) => candidate.address.toLowerCase() === address.toLowerCase(),
-    ) ?? wallets[0];
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,11 +40,6 @@ export default function UsernameForm({
         setError("Username can’t contain dots or special characters.");
         return;
       }
-      if (!wallet) {
-        setError("Your wallet is still loading.");
-        return;
-      }
-
       const availableRes = await fetch(
         `/api/ens?available=${encodeURIComponent(normalized)}`,
       );
@@ -66,22 +52,7 @@ export default function UsernameForm({
       }
 
       const owner = address as `0x${string}`;
-      await submitUserTxOrSponsor({
-        account: owner,
-        chain: ENS_CHAIN,
-        rpcPath: ENS_RPC_PATH,
-        sendSelf: async () => {
-          const client = await walletClientFromPrivy(wallet, ENS_CHAIN);
-          return client.writeContract({
-            address: ensContracts().usernameRegistrar,
-            abi: giftyRegistrarAbi,
-            functionName: "register",
-            args: [normalized, owner],
-          });
-        },
-        sponsor: () =>
-          postSponsor("/api/operator/register", { label: normalized, owner }),
-      });
+      await postSponsor("/api/operator/register", { label: normalized, owner });
       onRegistered(toFullUsername(normalized));
     } catch (caught) {
       setError(
@@ -124,7 +95,7 @@ export default function UsernameForm({
       ) : null}
 
       <button type="submit" disabled={busy} className={primaryButtonClassName}>
-        {busy ? "Registering on Sepolia…" : "Continue"}
+        {busy ? "Claiming username…" : "Continue"}
       </button>
     </form>
   );

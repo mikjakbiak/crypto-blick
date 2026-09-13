@@ -49,7 +49,7 @@ Gifty: a sender creates a gift link. The recipient opens it, signs in with Privy
 
 1. Email login via Privy.
 2. Embedded self-custodial wallet created on login.
-3. **Pick a free username** on Sepolia ENSv2. App mints `username.gifty.eth` for free (gas sponsored if the user has no Sepolia ETH).
+3. **Pick a free username** on Sepolia ENSv2. App mints `username.gifty.eth` for free. Operator always pays Sepolia gas. User wallet stays on Base.
 4. No dashboard until that name is set.
 
 Money lives on **Base**. ENS lives on **Sepolia**.
@@ -107,7 +107,7 @@ ENSv2 is a tree of registries. `bob.gifty.eth` is: root → `eth` → `gifty` �
 | Layer | What | Who pays |
 |---|---|---|
 | **Parent 2LD** (`gifty.eth`) | ETH Registrar: fee + gas | Platform (once) |
-| **Subnames** (`bob.gifty.eth`) | Our UserRegistry + `GiftyRegistrar` | Free to users. Gas from user or operator. |
+| **Subnames** (`bob.gifty.eth`) | Our UserRegistry + `GiftyRegistrar` | Free to users. Operator always pays Sepolia gas. |
 
 ---
 
