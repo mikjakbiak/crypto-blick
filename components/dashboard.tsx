@@ -25,15 +25,22 @@ import UsernameForm from "@/components/username-form";
 import useResumeGiftClaim from "@/components/use-resume-gift-claim";
 import { homePath } from "@/lib/paths";
 import { resolveClaimCode } from "@/lib/claim-code";
-import { DASHBOARD_TOKENS, formatTokenAmount, formatUsd } from "@/lib/tokens";
+import {
+  formatTokenAmount,
+  formatUsd,
+  formatUsdOrUnavailable,
+  type PortfolioToken,
+} from "@/lib/tokens";
 
 type Tab = "assets" | "send" | "contacts";
 
 type TokenRow = {
+  id: string;
   symbol: string;
   name: string;
   balance: number;
-  valueUsd: number;
+  valueUsd: number | null;
+  logo: string | null;
 };
 
 function isValidContactDestination(value: string) {
@@ -85,9 +92,8 @@ export default function Dashboard() {
   const sendMode = parseSendMode(searchParams.get("mode"), Boolean(recipient));
 
   const [balances, setBalances] = useState<{
-    ETH: string;
-    USDC: string;
-    USDT: string;
+    nativeRawBalance: string;
+    tokens: PortfolioToken[];
   } | null>(null);
   const [ensName, setEnsName] = useState<string | null>(null);
   const [ensReady, setEnsReady] = useState(false);
@@ -115,22 +121,21 @@ export default function Dashboard() {
   useEffect(() => {
     if (!walletAddress) return;
     let cancelled = false;
+    setBalances(null);
     async function load() {
       const [balanceRes, ensRes] = await Promise.all([
         fetch(`/api/balances?address=${walletAddress}`),
         fetch(`/api/ens?address=${walletAddress}`),
       ]);
       const nextBalances = (await balanceRes.json()) as {
-        ETH?: string;
-        USDC?: string;
-        USDT?: string;
+        nativeRawBalance?: string;
+        tokens?: PortfolioToken[];
       };
       const nextEns = (await ensRes.json()) as { ens?: string | null };
       if (cancelled) return;
       setBalances({
-        ETH: nextBalances.ETH ?? "0",
-        USDC: nextBalances.USDC ?? "0",
-        USDT: nextBalances.USDT ?? "0",
+        nativeRawBalance: nextBalances.nativeRawBalance ?? "0",
+        tokens: balanceRes.ok ? (nextBalances.tokens ?? []) : [],
       });
       setEnsName(nextEns.ens ?? null);
       setEnsReady(true);
@@ -154,21 +159,40 @@ export default function Dashboard() {
     walletAddress ? ensName : null,
   );
   const tokens = useMemo<TokenRow[]>(() => {
-    const source = walletAddress ? balances : null;
-    return DASHBOARD_TOKENS.map((token) => {
-      const rawBalance = source?.[token.symbol as keyof typeof source] ?? "0";
-      const balance = Number(formatUnits(BigInt(rawBalance), token.decimals));
+    if (!walletAddress || !balances) return [];
+    return balances.tokens.map((token) => {
+      const decimals = Number.isFinite(token.decimals) ? token.decimals : 18;
+      let balance = 0;
+      try {
+        balance = Number(formatUnits(BigInt(token.rawBalance), decimals));
+      } catch {
+        balance = 0;
+      }
       return {
+        id: token.id,
         symbol: token.symbol,
         name: token.name,
         balance,
-        valueUsd: balance * token.priceUsd,
+        valueUsd:
+          token.priceUsd == null ? null : balance * token.priceUsd,
+        logo: token.logo ?? null,
       };
     });
   }, [balances, walletAddress]);
-  const loadingBalances = !walletsReady || !wallet?.address;
+  const ethBalance = useMemo(() => {
+    if (!balances) return 0;
+    try {
+      return Number(formatUnits(BigInt(balances.nativeRawBalance), 18));
+    } catch {
+      return 0;
+    }
+  }, [balances]);
+  const loadingBalances = !walletsReady || !wallet?.address || !balances;
+  const totalUsd = tokens.reduce(
+    (sum, token) => (token.valueUsd == null ? sum : sum + token.valueUsd),
+    0,
+  );
 
-  const totalUsd = tokens.reduce((sum, token) => sum + token.valueUsd, 0);
   const displayName =
     ensName ??
     (wallet?.address
@@ -333,9 +357,7 @@ export default function Dashboard() {
         </div>
         <AccountMenu
           name={displayName}
-          ethBalance={
-            tokens.find((token) => token.symbol === "ETH")?.balance ?? 0
-          }
+          ethBalance={ethBalance}
         />
       </header>
 
@@ -414,35 +436,52 @@ export default function Dashboard() {
                 Tokens
               </h2>
               <ul className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-                {tokens.map((token, index) => (
-                  <li
-                    key={token.symbol}
-                    className={`flex items-center justify-between gap-3 px-4 py-4 ${
-                      index > 0
-                        ? "border-t border-zinc-100 dark:border-zinc-900"
-                        : ""
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                        {token.symbol}
-                      </p>
-                      <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
-                        {token.name}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono text-sm text-zinc-900 dark:text-zinc-50">
-                        {loadingBalances
-                          ? "…"
-                          : formatTokenAmount(token.balance)}
-                      </p>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {loadingBalances ? "…" : formatUsd(token.valueUsd)}
-                      </p>
-                    </div>
+                {tokens.length === 0 && !loadingBalances ? (
+                  <li className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                    No tokens with a balance.
                   </li>
-                ))}
+                ) : loadingBalances ? (
+                  <li className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                    Loading tokens…
+                  </li>
+                ) : (
+                  tokens.map((token, index) => (
+                    <li
+                      key={token.id}
+                      className={`flex items-center justify-between gap-3 px-4 py-4 ${
+                        index > 0
+                          ? "border-t border-zinc-100 dark:border-zinc-900"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        {token.logo ? (
+                          <img
+                            src={token.logo}
+                            alt=""
+                            width={32}
+                            height={32}
+                            className="size-8 shrink-0 rounded-full object-cover"
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : null}
+                        <p className="truncate font-medium text-zinc-900 dark:text-zinc-50">
+                          {token.name}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-medium text-zinc-900 dark:text-zinc-50">
+                          {formatUsdOrUnavailable(token.valueUsd)}
+                        </p>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                          {formatTokenAmount(token.balance)} {token.symbol}
+                        </p>
+                      </div>
+                    </li>
+                  ))
+                )}
               </ul>
             </section>
           </>

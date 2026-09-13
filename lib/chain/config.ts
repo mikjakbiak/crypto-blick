@@ -12,11 +12,6 @@ export const SEPOLIA_ENS_V2 = {
   mockUsdc: "0x768F42455A2D082E23ceeF7d51e5787C82d67a39",
 } as const;
 
-export const SEPOLIA_TOKEN_ADDRESSES = {
-  USDC: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-  USDT: "0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0",
-} as const;
-
 export function alchemySepoliaUrl(apiKey: string) {
   return `https://eth-sepolia.g.alchemy.com/v2/${apiKey}`;
 }
