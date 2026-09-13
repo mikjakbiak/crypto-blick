@@ -156,8 +156,7 @@ export default function Dashboard() {
   const tokens = useMemo<TokenRow[]>(() => {
     const source = walletAddress ? balances : null;
     return DASHBOARD_TOKENS.map((token) => {
-      const rawBalance =
-        source?.[token.symbol as keyof typeof source] ?? "0";
+      const rawBalance = source?.[token.symbol as keyof typeof source] ?? "0";
       const balance = Number(formatUnits(BigInt(rawBalance), token.decimals));
       return {
         symbol: token.symbol,
@@ -378,6 +377,18 @@ export default function Dashboard() {
           <>
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Wallet address
+              </p>
+              <p className="mt-2 font-medium text-zinc-900 dark:text-zinc-50">
+                {ensName ?? "…"}
+              </p>
+              <p className="mt-0.5 truncate font-mono text-sm text-zinc-500 dark:text-zinc-400">
+                {walletAddress ?? "…"}
+              </p>
+            </section>
+
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 Total balance
               </p>
               <p className="mt-1 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
@@ -437,64 +448,62 @@ export default function Dashboard() {
           </>
         ) : tab === "send" ? (
           <>
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-            <div
-              className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
-              role="tablist"
-              aria-label="Send mode"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={sendMode === "gift"}
-                onClick={() =>
-                  replaceDashboardQuery({
-                    tab: "send",
-                    mode: "gift",
-                    recipient: null,
-                  })
-                }
-                className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
-                  sendMode === "gift"
-                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                    : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-                }`}
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+              <div
+                className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
+                role="tablist"
+                aria-label="Send mode"
               >
-                Send gift
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={sendMode === "transfer"}
-                onClick={() =>
-                  replaceDashboardQuery({
-                    tab: "send",
-                    mode: "transfer",
-                  })
-                }
-                className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
-                  sendMode === "transfer"
-                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                    : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-                }`}
-              >
-                Send ETH
-              </button>
-            </div>
-            <div className="mt-5">
-              <SendGiftForm
-                key={`${sendMode}:${recipient}`}
-                mode={sendMode}
-                initialRecipient={recipient}
-                onTransferred={() =>
-                  setBalancesVersion((value) => value + 1)
-                }
-              />
-            </div>
-          </section>
-          {walletAddress ? (
-            <SentGiftsList walletAddress={walletAddress} />
-          ) : null}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={sendMode === "gift"}
+                  onClick={() =>
+                    replaceDashboardQuery({
+                      tab: "send",
+                      mode: "gift",
+                      recipient: null,
+                    })
+                  }
+                  className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
+                    sendMode === "gift"
+                      ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  Send gift
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={sendMode === "transfer"}
+                  onClick={() =>
+                    replaceDashboardQuery({
+                      tab: "send",
+                      mode: "transfer",
+                    })
+                  }
+                  className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
+                    sendMode === "transfer"
+                      ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  Send ETH
+                </button>
+              </div>
+              <div className="mt-5">
+                <SendGiftForm
+                  key={`${sendMode}:${recipient}`}
+                  mode={sendMode}
+                  initialRecipient={recipient}
+                  onTransferred={() => setBalancesVersion((value) => value + 1)}
+                />
+              </div>
+            </section>
+            {walletAddress ? (
+              <SentGiftsList walletAddress={walletAddress} />
+            ) : null}
           </>
         ) : (
           <>
