@@ -12,6 +12,7 @@ import { generateGiftCode } from "@/lib/zk/code";
 import { hashCode } from "@/lib/zk/poseidon";
 import { toHex } from "@/lib/zk/snark";
 import { rememberSentGiftCode } from "@/lib/sent-gifts";
+import { giftLink } from "@/lib/app-url";
 
 export type SendMode = "gift" | "transfer";
 
@@ -162,7 +163,7 @@ export default function SendGiftForm({
         code,
         codeHash: toHex(codeHash),
         amountEth: amount,
-        link: `${window.location.origin}/?code=${encodeURIComponent(code)}`,
+        link: giftLink(code),
       });
     } catch (error) {
       setSendError(

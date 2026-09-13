@@ -12,7 +12,7 @@ bun run deploy:base
 bun dev
 ```
 
-Env: see `.env.example`. `ALCHEMY_API_KEY` stays server-side (`/api/rpc` Base, `/api/ens-rpc` Sepolia, `/api/balances`, `/api/ens`). Deployer key is `DEPLOYER_PRIVATE_KEY`. After deploy, `NEXT_PUBLIC_GIFTY_CLAIMER` (Base), `NEXT_PUBLIC_USERNAME_REGISTRAR` (Sepolia), and `NEXT_PUBLIC_ENS_PARENT=gifty.eth` are written into `.env`. Verify uses `ETHERSCAN_API_KEY`.
+Env: see `.env.example`. `NEXT_PUBLIC_APP_URL` is the public origin (`https://gifty.energia.dev`) used for gift links and metadata. `ALCHEMY_API_KEY` stays server-side (`/api/rpc` Base, `/api/ens-rpc` Sepolia, `/api/balances`, `/api/ens`). Deployer key is `DEPLOYER_PRIVATE_KEY`. After deploy, `NEXT_PUBLIC_GIFTY_CLAIMER` (Base), `NEXT_PUBLIC_USERNAME_REGISTRAR` (Sepolia), and `NEXT_PUBLIC_ENS_PARENT=gifty.eth` are written into `.env`. Verify uses `ETHERSCAN_API_KEY`.
 
 Needs Foundry (`forge`). `bun run zk:setup` installs `circom` into `.bin/` if it is not already on PATH.
 
