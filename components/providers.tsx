@@ -1,5 +1,6 @@
 "use client";
 
+import isPropValid from "@emotion/is-prop-valid";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { StyleSheetManager } from "styled-components";
 import { sepolia } from "viem/chains";
@@ -13,6 +14,13 @@ function shouldForwardProp(propName: string) {
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
+
+function shouldForwardProp(propName: string, target: unknown) {
+  if (typeof target === "string") {
+    return isPropValid(propName);
+  }
+  return true;
+}
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   if (!appId) {

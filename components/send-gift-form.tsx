@@ -5,6 +5,7 @@ import { useWallets } from "@privy-io/react-auth";
 import { createPublicClient, http, isAddress, parseEther, type Hash } from "viem";
 import { giftClaimerAbi } from "@/lib/chain/abi";
 import { APP_CHAIN, publicContracts } from "@/lib/chain/config";
+import { MIN_GIFT_WEI } from "@/lib/chain/constants";
 import { privyChainClients, publicClientFromPrivy } from "@/lib/chain/wallet";
 import { generateGiftCode } from "@/lib/zk/code";
 import { hashCode } from "@/lib/zk/poseidon";
@@ -117,6 +118,10 @@ export default function SendGiftForm({
       const amount = amountEth.trim();
       if (!amount || Number(amount) <= 0) {
         setSendError("Enter a valid amount.");
+        return;
+      }
+      if (mode === "gift" && parseEther(amount) < MIN_GIFT_WEI) {
+        setSendError("Gifts must be at least 0.001 ETH.");
         return;
       }
       if (!wallet?.address) {
@@ -341,11 +346,11 @@ export default function SendGiftForm({
           type="number"
           name="amount"
           inputMode="decimal"
-          min="0"
+          min={mode === "gift" ? "0.001" : "0"}
           step="any"
           value={amountEth}
           onChange={(event) => setAmountEth(event.target.value)}
-          placeholder="0.01"
+          placeholder={mode === "gift" ? "0.001" : "0.01"}
           className={inputClassName}
         />
       </label>
@@ -360,6 +365,7 @@ export default function SendGiftForm({
           sendBusy ||
           !amountEth ||
           Number(amountEth) <= 0 ||
+          (mode === "gift" && Number(amountEth) < 0.001) ||
           (mode === "transfer" && !recipient.trim())
         }
         className={primaryButtonClassName}

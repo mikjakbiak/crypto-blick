@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -22,6 +24,7 @@ import {
   subscribeToContacts,
 } from "@/lib/contacts";
 import UsernameForm from "@/components/username-form";
+import GiftReceived from "@/components/gift-received";
 import useResumeGiftClaim from "@/components/use-resume-gift-claim";
 import { homePath } from "@/lib/paths";
 import { resolveClaimCode } from "@/lib/claim-code";
@@ -66,7 +69,7 @@ function parseSendMode(value: string | null, hasRecipient: boolean): SendMode {
 export default function Dashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated, user } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
   const { addFunds } = useAddFunds();
   const wallet =
@@ -99,13 +102,15 @@ export default function Dashboard() {
     getServerContactsSnapshot,
   );
 
-  const pendingCode = resolveClaimCode(searchParams.get("code"));
-  const walletAddress = wallet?.address;
+  const signedIn = Boolean(ready && authenticated && user);
 
-  useEffect(() => {
-    if (!walletAddress) return;
-    console.log("privy address", walletAddress);
-  }, [walletAddress]);
+  const pendingCode = resolveClaimCode(searchParams.get("code"));
+  const walletAddress = signedIn ? wallet?.address : undefined;
+
+  useLayoutEffect(() => {
+    if (!ready || signedIn) return;
+    router.replace(homePath(pendingCode || null));
+  }, [ready, signedIn, router, pendingCode]);
 
   useEffect(() => {
     if (!walletAddress) return;
@@ -135,17 +140,16 @@ export default function Dashboard() {
     };
   }, [walletAddress, balancesVersion, usernameVersion]);
 
-  useEffect(() => {
-    if (!ready || authenticated) return;
-    router.replace(homePath(pendingCode || null));
-  }, [ready, authenticated, router, pendingCode]);
-
   const contacts = walletAddress
     ? getContacts(walletAddress, contactsSnapshot)
     : [];
+  const refreshBalances = useCallback(() => {
+    setBalancesVersion((value) => value + 1);
+  }, []);
   const claim = useResumeGiftClaim(
-    authenticated ? walletAddress : undefined,
-    walletAddress ? ensName : null,
+    signedIn ? walletAddress : undefined,
+    signedIn && walletAddress ? ensName : null,
+    refreshBalances,
   );
   const tokens = useMemo<TokenRow[]>(() => {
     if (!walletAddress || !balances) return [];
@@ -291,7 +295,7 @@ export default function Dashboard() {
     removeContact(wallet.address, id);
   }
 
-  if (!ready || !authenticated) {
+  if (!signedIn) {
     return (
       <div className="flex flex-1 items-center justify-center px-4 py-8 text-sm text-zinc-500">
         Loading…
@@ -347,6 +351,9 @@ export default function Dashboard() {
           <p className="rounded-2xl border border-teal-900/10 bg-teal-50 px-4 py-3 text-sm text-teal-900 dark:border-teal-400/20 dark:bg-teal-950/40 dark:text-teal-100">
             Claiming your gift to this wallet…
           </p>
+        ) : null}
+        {claim.status === "claimed" && claim.paidWei != null ? (
+          <GiftReceived paidWei={claim.paidWei} celebrate={claim.celebrate} />
         ) : null}
         {claim.status === "error" && claim.error ? (
           <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">

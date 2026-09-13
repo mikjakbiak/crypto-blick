@@ -18,6 +18,16 @@ export const giftClaimerAbi = [
   },
   {
     type: "function",
+    name: "claimFor",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "proof", type: "uint256[24]" },
+      { name: "publicSignals", type: "uint256[2]" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "gifts",
     stateMutability: "view",
     inputs: [{ name: "codeHash", type: "uint256" }],
@@ -28,12 +38,29 @@ export const giftClaimerAbi = [
     ],
   },
   {
+    type: "function",
+    name: "operatorFee",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
     type: "event",
     name: "GiftCreated",
     inputs: [
       { name: "codeHash", type: "uint256", indexed: true },
       { name: "sender", type: "address", indexed: true },
       { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "GiftClaimed",
+    inputs: [
+      { name: "codeHash", type: "uint256", indexed: true },
+      { name: "claimant", type: "address", indexed: true },
+      { name: "paid", type: "uint256", indexed: false },
+      { name: "fee", type: "uint256", indexed: false },
     ],
   },
 ] as const;

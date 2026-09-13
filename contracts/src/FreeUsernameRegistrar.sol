@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Operated} from "./Operated.sol";
+
 interface IUserRegistry {
     function register(
         string calldata label,
@@ -10,6 +12,10 @@ interface IUserRegistry {
         uint256 roleBitmap,
         uint64 expiry
     ) external returns (uint256 tokenId);
+
+    function findOwner(string calldata label) external view returns (address);
+
+    function findTokenId(string calldata label) external view returns (uint256);
 }
 
 interface IPermissionedResolver {
@@ -17,7 +23,7 @@ interface IPermissionedResolver {
 }
 
 /// @notice Zero-price ENSv2 subname registrar. One username per wallet.
-contract FreeUsernameRegistrar {
+contract FreeUsernameRegistrar is Operated {
     uint256 public constant REGISTRATION_ROLE_BITMAP =
         (1 << 20) | ((1 << 20) << 128) | (1 << 24) | ((1 << 24) << 128) | ((1 << 28) << 128);
 
@@ -36,7 +42,7 @@ contract FreeUsernameRegistrar {
     error AlreadyNamed();
     error LabelTaken();
     error InvalidOwner();
-    error NotOwner();
+    error NotAuthorized();
 
     constructor(IUserRegistry registry_, IPermissionedResolver resolver_, bytes32 parentNode_) {
         registry = registry_;
@@ -45,29 +51,37 @@ contract FreeUsernameRegistrar {
     }
 
     function isAvailable(string calldata label) public view returns (bool) {
-        return ownerOfLabelHash[keccak256(bytes(label))] == address(0);
+        if (ownerOfLabelHash[keccak256(bytes(label))] != address(0)) return false;
+        return registry.findOwner(label) == address(0);
     }
 
     function register(string calldata label, address owner) external returns (uint256 tokenId) {
         if (owner == address(0)) revert InvalidOwner();
-        if (owner != msg.sender) revert NotOwner();
+        if (owner != msg.sender && msg.sender != operator) revert NotAuthorized();
         if (bytes(labelOf[owner]).length != 0) revert AlreadyNamed();
         if (!_validLabel(label)) revert InvalidLabel();
 
         bytes32 labelHash = keccak256(bytes(label));
         if (ownerOfLabelHash[labelHash] != address(0)) revert LabelTaken();
 
+        address existing = registry.findOwner(label);
+        if (existing != address(0) && existing != owner) revert LabelTaken();
+
         ownerOfLabelHash[labelHash] = owner;
         labelOf[owner] = label;
 
-        tokenId = registry.register(
-            label,
-            owner,
-            address(0),
-            address(resolver),
-            REGISTRATION_ROLE_BITMAP,
-            uint64(block.timestamp) + USERNAME_DURATION
-        );
+        if (existing == address(0)) {
+            tokenId = registry.register(
+                label,
+                owner,
+                address(0),
+                address(resolver),
+                REGISTRATION_ROLE_BITMAP,
+                uint64(block.timestamp) + USERNAME_DURATION
+            );
+        } else {
+            tokenId = registry.findTokenId(label);
+        }
 
         bytes32 node = keccak256(abi.encodePacked(parentNode, labelHash));
         resolver.setAddr(node, owner);

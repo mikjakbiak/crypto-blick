@@ -6,9 +6,29 @@ import {FreeUsernameRegistrar, IPermissionedResolver, IUserRegistry} from "../sr
 
 contract MockRegistry {
     uint256 public nextId = 1;
+    mapping(string => address) public owners;
+    mapping(string => uint256) public ids;
 
-    function register(string calldata, address, address, address, uint256, uint64) external returns (uint256 tokenId) {
+    function findOwner(string calldata label) external view returns (address) {
+        return owners[label];
+    }
+
+    function findTokenId(string calldata label) external view returns (uint256) {
+        return ids[label];
+    }
+
+    function seed(string calldata label, address owner, uint256 tokenId) external {
+        owners[label] = owner;
+        ids[label] = tokenId;
+    }
+
+    function register(string calldata label, address owner, address, address, uint256, uint64)
+        external
+        returns (uint256 tokenId)
+    {
         tokenId = nextId++;
+        owners[label] = owner;
+        ids[label] = tokenId;
     }
 }
 
@@ -62,5 +82,46 @@ contract FreeUsernameRegistrarTest is Test {
         vm.prank(other);
         vm.expectRevert(FreeUsernameRegistrar.LabelTaken.selector);
         registrar.register("taken", other);
+    }
+
+    function test_registryNameUnavailable() public {
+        registry.seed("beeinger", USER, 99);
+        assertFalse(registrar.isAvailable("beeinger"));
+        address other = address(uint160(0xB0B));
+        vm.prank(other);
+        vm.expectRevert(FreeUsernameRegistrar.LabelTaken.selector);
+        registrar.register("beeinger", other);
+    }
+
+    function test_adoptsExistingRegistryName() public {
+        registry.seed("beeinger", USER, 99);
+        uint256 tokenId = registrar.register("beeinger", USER);
+        assertEq(tokenId, 99);
+        assertEq(registrar.labelOf(USER), "beeinger");
+        assertEq(registry.nextId(), 1);
+    }
+
+    function test_operatorCanRegisterForUser() public {
+        uint256 tokenId = registrar.register("sponsored", USER);
+        assertEq(tokenId, 1);
+        assertEq(registrar.labelOf(USER), "sponsored");
+        assertEq(registrar.operator(), address(this));
+    }
+
+    function test_nonOperatorCannotRegisterForOther() public {
+        address other = address(uint160(0xB0B));
+        vm.prank(other);
+        vm.expectRevert(FreeUsernameRegistrar.NotAuthorized.selector);
+        registrar.register("sneaky", USER);
+    }
+
+    function test_setOperatorLetsNewOperatorRegister() public {
+        address nextOp = address(uint160(0x0B));
+        registrar.setOperator(nextOp);
+        vm.prank(nextOp);
+        registrar.register("sponsored", USER);
+        assertEq(registrar.labelOf(USER), "sponsored");
+        assertEq(registrar.operator(), nextOp);
+        assertEq(registrar.owner(), address(this));
     }
 }
