@@ -1,29 +1,15 @@
-export type TokenDefinition = {
+export type PortfolioToken = {
+  id: string;
   symbol: string;
   name: string;
   decimals: number;
-  /** Display USD price used for portfolio totals. */
-  priceUsd: number;
+  rawBalance: string;
   kind: "native" | "erc20";
+  contractAddress?: string;
+  /** Mainnet USD price per token, or null when Alchemy has no quote. */
+  priceUsd: number | null;
+  logo?: string | null;
 };
-
-/** Tokens shown on the dashboard. Balances come from Alchemy on Base. */
-export const DASHBOARD_TOKENS: TokenDefinition[] = [
-  {
-    symbol: "ETH",
-    name: "Ethereum",
-    decimals: 18,
-    priceUsd: 3450,
-    kind: "native",
-  },
-  {
-    symbol: "USDC",
-    name: "USD Coin",
-    decimals: 6,
-    priceUsd: 1,
-    kind: "erc20",
-  },
-];
 
 export function formatTokenAmount(amount: number, maximumFractionDigits = 6) {
   if (amount === 0) return "0";
@@ -40,4 +26,8 @@ export function formatUsd(amount: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+export function formatUsdOrUnavailable(amount: number | null) {
+  return amount == null ? "US$ —" : formatUsd(amount);
 }

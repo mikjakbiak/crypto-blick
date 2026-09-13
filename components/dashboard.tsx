@@ -28,17 +28,24 @@ import GiftReceived from "@/components/gift-received";
 import DemoSpendCard from "@/components/demo-spend-card";
 import useResumeGiftClaim from "@/components/use-resume-gift-claim";
 import { homePath } from "@/lib/paths";
-import { resolveClaimCode } from "@/lib/claim-code";
 import { BASE_USDC } from "@/lib/chain/config";
-import { DASHBOARD_TOKENS, formatTokenAmount, formatUsd } from "@/lib/tokens";
+import { resolveClaimCode } from "@/lib/claim-code";
+import {
+  formatTokenAmount,
+  formatUsd,
+  formatUsdOrUnavailable,
+  type PortfolioToken,
+} from "@/lib/tokens";
 
 type Tab = "assets" | "send" | "contacts";
 
 type TokenRow = {
+  id: string;
   symbol: string;
   name: string;
   balance: number;
-  valueUsd: number;
+  valueUsd: number | null;
+  logo: string | null;
 };
 
 function isValidContactDestination(value: string) {
@@ -61,17 +68,6 @@ function parseSendMode(value: string | null, hasRecipient: boolean): SendMode {
   return hasRecipient ? "transfer" : "gift";
 }
 
-function tabTitle(tab: Tab) {
-  switch (tab) {
-    case "assets":
-      return "Portfolio";
-    case "send":
-      return "Send";
-    case "contacts":
-      return "Contacts";
-  }
-}
-
 export default function Dashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,8 +86,8 @@ export default function Dashboard() {
   const sendMode = parseSendMode(searchParams.get("mode"), Boolean(recipient));
 
   const [balances, setBalances] = useState<{
-    ETH: string;
-    USDC: string;
+    nativeRawBalance: string;
+    tokens: PortfolioToken[];
   } | null>(null);
   const [fundAsset, setFundAsset] = useState<"ETH" | "USDC">("ETH");
   const [ensName, setEnsName] = useState<string | null>(null);
@@ -124,20 +120,21 @@ export default function Dashboard() {
   useEffect(() => {
     if (!walletAddress) return;
     let cancelled = false;
+    setBalances(null);
     async function load() {
       const [balanceRes, ensRes] = await Promise.all([
         fetch(`/api/balances?address=${walletAddress}`),
         fetch(`/api/ens?address=${walletAddress}`),
       ]);
       const nextBalances = (await balanceRes.json()) as {
-        ETH?: string;
-        USDC?: string;
+        nativeRawBalance?: string;
+        tokens?: PortfolioToken[];
       };
       const nextEns = (await ensRes.json()) as { ens?: string | null };
       if (cancelled) return;
       setBalances({
-        ETH: nextBalances.ETH ?? "0",
-        USDC: nextBalances.USDC ?? "0",
+        nativeRawBalance: nextBalances.nativeRawBalance ?? "0",
+        tokens: balanceRes.ok ? (nextBalances.tokens ?? []) : [],
       });
       setEnsName(nextEns.ens ?? null);
       setEnsReady(true);
@@ -160,22 +157,40 @@ export default function Dashboard() {
     refreshBalances,
   );
   const tokens = useMemo<TokenRow[]>(() => {
-    const source = walletAddress ? balances : null;
-    return DASHBOARD_TOKENS.map((token) => {
-      const rawBalance =
-        source?.[token.symbol as keyof typeof source] ?? "0";
-      const balance = Number(formatUnits(BigInt(rawBalance), token.decimals));
+    if (!walletAddress || !balances) return [];
+    return balances.tokens.map((token) => {
+      const decimals = Number.isFinite(token.decimals) ? token.decimals : 18;
+      let balance = 0;
+      try {
+        balance = Number(formatUnits(BigInt(token.rawBalance), decimals));
+      } catch {
+        balance = 0;
+      }
       return {
+        id: token.id,
         symbol: token.symbol,
         name: token.name,
         balance,
-        valueUsd: balance * token.priceUsd,
+        valueUsd:
+          token.priceUsd == null ? null : balance * token.priceUsd,
+        logo: token.logo ?? null,
       };
     });
   }, [balances, walletAddress]);
-  const loadingBalances = !walletsReady || !wallet?.address;
+  const ethBalance = useMemo(() => {
+    if (!balances) return 0;
+    try {
+      return Number(formatUnits(BigInt(balances.nativeRawBalance), 18));
+    } catch {
+      return 0;
+    }
+  }, [balances]);
+  const loadingBalances = !walletsReady || !wallet?.address || !balances;
+  const totalUsd = tokens.reduce(
+    (sum, token) => (token.valueUsd == null ? sum : sum + token.valueUsd),
+    0,
+  );
 
-  const totalUsd = tokens.reduce((sum, token) => sum + token.valueUsd, 0);
   const displayName =
     ensName ??
     (wallet?.address
@@ -320,8 +335,11 @@ export default function Dashboard() {
 
   if (walletsReady && walletAddress && ensReady && !ensName) {
     return (
-      <div className="relative flex flex-1 flex-col">
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
+      <div className="landing relative flex flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex items-center justify-end px-4 py-4">
+          <AccountMenu name={displayName} ethBalance={ethBalance} />
+        </header>
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 pb-10">
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-teal-800 dark:text-teal-300">
             Create your account
           </p>
@@ -353,22 +371,9 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-            Dashboard
-          </p>
-          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            {tabTitle(tab)}
-          </h1>
-        </div>
-        <AccountMenu
-          name={displayName}
-          ethBalance={
-            tokens.find((token) => token.symbol === "ETH")?.balance ?? 0
-          }
-        />
+    <div className="landing flex flex-1 flex-col">
+      <header className="sticky top-0 z-30 flex items-center justify-end px-4 py-4">
+        <AccountMenu name={displayName} ethBalance={ethBalance} />
       </header>
 
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-6">
@@ -410,6 +415,18 @@ export default function Dashboard() {
 
         {tab === "assets" ? (
           <>
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Wallet address
+              </p>
+              <p className="mt-2 font-medium text-zinc-900 dark:text-zinc-50">
+                {ensName ?? "…"}
+              </p>
+              <p className="mt-0.5 truncate font-mono text-sm text-zinc-500 dark:text-zinc-400">
+                {walletAddress ?? "…"}
+              </p>
+            </section>
+
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 Total balance
@@ -474,98 +491,113 @@ export default function Dashboard() {
                 Tokens
               </h2>
               <ul className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-                {tokens.map((token, index) => (
-                  <li
-                    key={token.symbol}
-                    className={`flex items-center justify-between gap-3 px-4 py-4 ${
-                      index > 0
-                        ? "border-t border-zinc-100 dark:border-zinc-900"
-                        : ""
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                        {token.symbol}
-                      </p>
-                      <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
-                        {token.name}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono text-sm text-zinc-900 dark:text-zinc-50">
-                        {loadingBalances
-                          ? "…"
-                          : formatTokenAmount(token.balance)}
-                      </p>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {loadingBalances ? "…" : formatUsd(token.valueUsd)}
-                      </p>
-                    </div>
+                {tokens.length === 0 && !loadingBalances ? (
+                  <li className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                    No tokens with a balance.
                   </li>
-                ))}
+                ) : loadingBalances ? (
+                  <li className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                    Loading tokens…
+                  </li>
+                ) : (
+                  tokens.map((token, index) => (
+                    <li
+                      key={token.id}
+                      className={`flex items-center justify-between gap-3 px-4 py-4 ${
+                        index > 0
+                          ? "border-t border-zinc-100 dark:border-zinc-900"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        {token.logo ? (
+                          <img
+                            src={token.logo}
+                            alt=""
+                            width={32}
+                            height={32}
+                            className="size-8 shrink-0 rounded-full object-cover"
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : null}
+                        <p className="truncate font-medium text-zinc-900 dark:text-zinc-50">
+                          {token.name}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-medium text-zinc-900 dark:text-zinc-50">
+                          {formatUsdOrUnavailable(token.valueUsd)}
+                        </p>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                          {formatTokenAmount(token.balance)} {token.symbol}
+                        </p>
+                      </div>
+                    </li>
+                  ))
+                )}
               </ul>
             </section>
           </>
         ) : tab === "send" ? (
           <>
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-            <div
-              className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
-              role="tablist"
-              aria-label="Send mode"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={sendMode === "gift"}
-                onClick={() =>
-                  replaceDashboardQuery({
-                    tab: "send",
-                    mode: "gift",
-                    recipient: null,
-                  })
-                }
-                className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
-                  sendMode === "gift"
-                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                    : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-                }`}
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+              <div
+                className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900"
+                role="tablist"
+                aria-label="Send mode"
               >
-                Send gift
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={sendMode === "transfer"}
-                onClick={() =>
-                  replaceDashboardQuery({
-                    tab: "send",
-                    mode: "transfer",
-                  })
-                }
-                className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
-                  sendMode === "transfer"
-                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                    : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-                }`}
-              >
-                Send ETH
-              </button>
-            </div>
-            <div className="mt-5">
-              <SendGiftForm
-                key={`${sendMode}:${recipient}`}
-                mode={sendMode}
-                initialRecipient={recipient}
-                onTransferred={() =>
-                  setBalancesVersion((value) => value + 1)
-                }
-              />
-            </div>
-          </section>
-          {walletAddress ? (
-            <SentGiftsList walletAddress={walletAddress} />
-          ) : null}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={sendMode === "gift"}
+                  onClick={() =>
+                    replaceDashboardQuery({
+                      tab: "send",
+                      mode: "gift",
+                      recipient: null,
+                    })
+                  }
+                  className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
+                    sendMode === "gift"
+                      ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  Send gift
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={sendMode === "transfer"}
+                  onClick={() =>
+                    replaceDashboardQuery({
+                      tab: "send",
+                      mode: "transfer",
+                    })
+                  }
+                  className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
+                    sendMode === "transfer"
+                      ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                      : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  Send ETH
+                </button>
+              </div>
+              <div className="mt-5">
+                <SendGiftForm
+                  key={`${sendMode}:${recipient}`}
+                  mode={sendMode}
+                  initialRecipient={recipient}
+                  onTransferred={() => setBalancesVersion((value) => value + 1)}
+                />
+              </div>
+            </section>
+            {walletAddress ? (
+              <SentGiftsList walletAddress={walletAddress} />
+            ) : null}
           </>
         ) : (
           <>
@@ -582,7 +614,7 @@ export default function Dashboard() {
                   value={contactName}
                   onChange={(event) => setContactName(event.target.value)}
                   placeholder="Name"
-                  className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-zinc-900 outline-none ring-zinc-400 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+                  className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-zinc-900 outline-none ring-teal-500/40 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                 />
                 <input
                   type="text"
@@ -590,7 +622,7 @@ export default function Dashboard() {
                   onChange={(event) => setContactAddress(event.target.value)}
                   placeholder="Address or ENS"
                   spellCheck={false}
-                  className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 font-mono text-sm text-zinc-900 outline-none ring-zinc-400 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+                  className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 font-mono text-sm text-zinc-900 outline-none ring-teal-500/40 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500"
                 />
                 {contactError ? (
                   <p className="text-sm text-red-600 dark:text-red-400">
@@ -599,7 +631,7 @@ export default function Dashboard() {
                 ) : null}
                 <button
                   type="submit"
-                  className="min-h-12 w-full rounded-xl bg-zinc-900 px-4 text-base font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+                  className="min-h-12 w-full rounded-xl bg-teal-800 px-4 text-base font-medium text-white transition-colors hover:bg-teal-700 dark:bg-teal-500 dark:text-zinc-950 dark:hover:bg-teal-400"
                 >
                   Save contact
                 </button>

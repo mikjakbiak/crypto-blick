@@ -42,3 +42,13 @@ export function browserPublicClient(rpcPath: string, chain: Chain) {
     transport: http(rpcPath),
   });
 }
+
+export function browserProviderPublicClient(
+  provider: EIP1193Provider,
+  chain: Chain,
+) {
+  return createPublicClient({
+    chain,
+    transport: custom(provider),
+  });
+}

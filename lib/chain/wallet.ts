@@ -1,18 +1,40 @@
 import type { ConnectedWallet } from "@privy-io/react-auth";
-import type { Chain } from "viem";
-import { browserWalletClient } from "./clients";
+import type { Chain, EIP1193Provider, Hex } from "viem";
+import {
+  browserProviderPublicClient,
+  browserWalletClient,
+} from "./clients";
 
-export async function walletClientFromPrivy(
+export async function ethereumProviderFromPrivy(
   wallet: ConnectedWallet,
   chain: Chain,
 ) {
   if (wallet.switchChain) {
     await wallet.switchChain(chain.id);
   }
-  const provider = await wallet.getEthereumProvider();
-  return browserWalletClient(
-    provider as Parameters<typeof browserWalletClient>[0],
-    wallet.address as `0x${string}`,
-    chain,
-  );
+  return (await wallet.getEthereumProvider()) as EIP1193Provider;
+}
+
+export async function privyChainClients(wallet: ConnectedWallet, chain: Chain) {
+  const provider = await ethereumProviderFromPrivy(wallet, chain);
+  return {
+    walletClient: browserWalletClient(provider, wallet.address as Hex, chain),
+    publicClient: browserProviderPublicClient(provider, chain),
+  };
+}
+
+export async function walletClientFromPrivy(
+  wallet: ConnectedWallet,
+  chain: Chain,
+) {
+  const { walletClient } = await privyChainClients(wallet, chain);
+  return walletClient;
+}
+
+export async function publicClientFromPrivy(
+  wallet: ConnectedWallet,
+  chain: Chain,
+) {
+  const { publicClient } = await privyChainClients(wallet, chain);
+  return publicClient;
 }

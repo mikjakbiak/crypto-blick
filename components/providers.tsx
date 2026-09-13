@@ -4,6 +4,9 @@ import isPropValid from "@emotion/is-prop-valid";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { StyleSheetManager } from "styled-components";
 import { base, sepolia } from "viem/chains";
+import { silencePrivyIsActiveWarning } from "@/lib/silence-privy-isactive-warning";
+
+silencePrivyIsActiveWarning();
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 const clientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;

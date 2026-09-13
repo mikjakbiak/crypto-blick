@@ -2,12 +2,12 @@
 
 import { useState, type FormEvent } from "react";
 import { useWallets } from "@privy-io/react-auth";
-import { isAddress, parseEther } from "viem";
+import { isAddress, parseEther, type Hash } from "viem";
 import { giftyClaimerAbi } from "@/lib/chain/abi";
 import { browserPublicClient } from "@/lib/chain/clients";
 import { MONEY_CHAIN, MONEY_RPC_PATH, moneyContracts } from "@/lib/chain/config";
 import { MIN_GIFT_WEI } from "@/lib/chain/constants";
-import { walletClientFromPrivy } from "@/lib/chain/wallet";
+import { privyChainClients, publicClientFromPrivy } from "@/lib/chain/wallet";
 import { generateGiftCode } from "@/lib/zk/code";
 import { hashCode } from "@/lib/zk/poseidon";
 import { toHex } from "@/lib/zk/snark";
@@ -40,13 +40,42 @@ type SendGiftFormProps = {
 };
 
 const inputClassName =
-  "min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-zinc-900 outline-none ring-zinc-400 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500";
+  "min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-zinc-900 outline-none ring-teal-500/40 placeholder:text-zinc-400 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:placeholder:text-zinc-500";
 
 const primaryButtonClassName =
-  "min-h-12 w-full rounded-xl bg-zinc-900 px-4 text-base font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white";
+  "min-h-12 w-full rounded-xl bg-teal-800 px-4 text-base font-medium text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-500 dark:text-zinc-950 dark:hover:bg-teal-400";
 
 function isValidRecipient(value: string) {
   return isAddress(value) || /^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/i.test(value);
+}
+
+function hashFromUnknown(value: unknown): Hash | undefined {
+  if (typeof value === "string" && /^0x[0-9a-fA-F]{64}$/.test(value)) {
+    return value as Hash;
+  }
+  if (!value || typeof value !== "object") return undefined;
+  if ("hash" in value) return hashFromUnknown(value.hash);
+  if ("transactionHash" in value) return hashFromUnknown(value.transactionHash);
+  if ("cause" in value) return hashFromUnknown(value.cause);
+  return undefined;
+}
+
+async function waitForGiftReceipt(
+  providerClient: Awaited<ReturnType<typeof publicClientFromPrivy>>,
+  hash: Hash,
+) {
+  try {
+    return await providerClient.waitForTransactionReceipt({
+      hash,
+      timeout: 120_000,
+    });
+  } catch {
+    const rpcClient = browserPublicClient(MONEY_RPC_PATH, MONEY_CHAIN);
+    return rpcClient.waitForTransactionReceipt({
+      hash,
+      timeout: 120_000,
+    });
+  }
 }
 
 export default function SendGiftForm({
@@ -99,7 +128,8 @@ export default function SendGiftForm({
         return;
       }
 
-      const client = await walletClientFromPrivy(wallet, MONEY_CHAIN);
+      const { walletClient: client, publicClient } =
+        await privyChainClients(wallet, MONEY_CHAIN);
 
       if (mode === "transfer") {
         const trimmedRecipient = recipient.trim();
@@ -139,15 +169,44 @@ export default function SendGiftForm({
 
       const code = generateGiftCode();
       const codeHash = hashCode(code);
-      const hash = await client.writeContract({
-        address: moneyContracts().giftyClaimer,
-        abi: giftyClaimerAbi,
-        functionName: "createGift",
-        args: [codeHash],
-        value: parseEther(amount),
-      });
-      const publicClient = browserPublicClient(MONEY_RPC_PATH, MONEY_CHAIN);
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      const finishGift = () => {
+        rememberSentGiftCode(wallet.address, {
+          codeHash: toHex(codeHash),
+          code,
+          createdAt: Date.now(),
+        });
+        setSendResult({
+          kind: "gift",
+          code,
+          codeHash: toHex(codeHash),
+          amountEth: amount,
+          link: `${window.location.origin}/?code=${encodeURIComponent(code)}`,
+        });
+        onTransferred?.();
+      };
+
+      let hash: Hash | undefined;
+      try {
+        hash = await client.writeContract({
+          address: moneyContracts().giftyClaimer,
+          abi: giftyClaimerAbi,
+          functionName: "createGift",
+          args: [codeHash],
+          value: parseEther(amount),
+        });
+      } catch (error) {
+        hash = hashFromUnknown(error);
+        if (!hash) throw error;
+      }
+
+      let receipt;
+      try {
+        receipt = await waitForGiftReceipt(publicClient, hash);
+      } catch (error) {
+        console.error("Could not confirm gift receipt", error);
+        finishGift();
+        return;
+      }
       if (receipt.status !== "success") {
         throw new Error("Gift lock reverted on Base.");
       }
