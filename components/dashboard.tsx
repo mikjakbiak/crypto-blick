@@ -120,11 +120,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (!walletAddress) return;
     let cancelled = false;
-    setBalances(null);
     async function load() {
       const [balanceRes, ensRes] = await Promise.all([
-        fetch(`/api/balances?address=${walletAddress}`),
-        fetch(`/api/ens?address=${walletAddress}`),
+        fetch(`/api/balances?address=${walletAddress}`, { cache: "no-store" }),
+        fetch(`/api/ens?address=${walletAddress}`, { cache: "no-store" }),
       ]);
       const nextBalances = (await balanceRes.json()) as {
         nativeRawBalance?: string;
@@ -156,6 +155,12 @@ export default function Dashboard() {
     signedIn && walletAddress ? ensName : null,
     refreshBalances,
   );
+
+  useEffect(() => {
+    if (claim.status !== "claimed") return;
+    const retry = window.setTimeout(refreshBalances, 1500);
+    return () => window.clearTimeout(retry);
+  }, [claim.status, refreshBalances]);
   const tokens = useMemo<TokenRow[]>(() => {
     if (!walletAddress || !balances) return [];
     return balances.tokens.map((token) => {

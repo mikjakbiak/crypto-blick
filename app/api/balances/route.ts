@@ -4,6 +4,10 @@ import { baseRpcUrl } from "@/lib/chain/server-rpc";
 import { getPortfolioUsdPrices } from "@/lib/prices";
 import type { PortfolioToken } from "@/lib/tokens";
 
+export const dynamic = "force-dynamic";
+
+const NO_STORE = { "Cache-Control": "no-store" } as const;
+
 type AlchemyTokenBalance = {
   contractAddress: string;
   tokenBalance: string | null;
@@ -119,7 +123,10 @@ async function mapWithConcurrency<T, R>(
 export async function GET(request: Request) {
   const address = new URL(request.url).searchParams.get("address")?.trim() ?? "";
   if (!isAddress(address)) {
-    return NextResponse.json({ error: "Invalid address" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid address" },
+      { status: 400, headers: NO_STORE },
+    );
   }
 
   try {
@@ -183,17 +190,20 @@ export async function GET(request: Request) {
       // Keep balances even if the Prices API is unavailable.
     }
 
-    return NextResponse.json({
-      nativeRawBalance: ethRaw,
-      tokens,
-    });
+    return NextResponse.json(
+      {
+        nativeRawBalance: ethRaw,
+        tokens,
+      },
+      { headers: NO_STORE },
+    );
   } catch (error) {
     return NextResponse.json(
       {
         error:
           error instanceof Error ? error.message : "Could not read Base balances",
       },
-      { status: 502 },
+      { status: 502, headers: NO_STORE },
     );
   }
 }

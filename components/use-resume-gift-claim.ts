@@ -104,7 +104,10 @@ export default function useResumeGiftClaim(
             }),
         });
 
-        const receipt = await publicClient.getTransactionReceipt({ hash });
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash,
+          confirmations: 2,
+        });
         const claimedLogs = parseEventLogs({
           abi: giftyClaimerAbi,
           eventName: "GiftyClaimed",
